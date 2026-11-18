@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-이 저장소는 개인 포트폴리오 관리 웹서비스 Reportory(저장소 `reportory`)다. 전체 명세는 `docs/handoff.md`(PDF: `docs/handoff.pdf`)에 있다.
+이 저장소는 개인 포트폴리오 관리 웹서비스 re:portory다. 저장소 이름과 도메인용 표기는 `reportory`를 쓴다. 전체 명세는 `docs/handoff.md`(PDF: `docs/handoff.pdf`)에 있다.
 
 ## 작업 원칙 (인계서 1.2절)
 
