@@ -1,0 +1,32 @@
+{
+  "entry_date": "2026-11-18",
+  "entry": "딥러닝 프로젝트 모델 학습 다시 돌림. 검증 정확도가 0.71에서 0.78로 올랐다.",
+  "known_items": [
+    {
+      "id": "aaaaaaaa-0000-4000-8000-000000000001",
+      "type": "project",
+      "title": "딥러닝 이미지 분류 프로젝트",
+      "organization": null,
+      "start_date": "2026-09-01",
+      "end_date": null,
+      "is_ongoing": true,
+      "skills": [
+        "PyTorch"
+      ]
+    }
+  ],
+  "open_applications": [],
+  "expect": {
+    "is_relevant": true,
+    "candidates": [
+      {
+        "action": "update",
+        "target_item_id": "aaaaaaaa-0000-4000-8000-000000000001",
+        "metrics_include": [
+          "0.78"
+        ]
+      }
+    ],
+    "no_create": true
+  }
+}

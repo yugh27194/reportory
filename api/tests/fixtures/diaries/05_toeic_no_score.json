@@ -1,0 +1,15 @@
+{
+  "entry_date": "2026-11-18",
+  "entry": "토익 봤는데 점수는 다음 주에 나온다.",
+  "known_items": [],
+  "open_applications": [],
+  "expect": {
+    "allowed_types": [
+      "language_test"
+    ],
+    "forbidden_details": [
+      "score"
+    ],
+    "forbidden_numbers_any": true
+  }
+}

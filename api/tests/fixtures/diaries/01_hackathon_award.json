@@ -1,0 +1,31 @@
+{
+  "entry_date": "2026-11-18",
+  "entry": "오늘 OO 해커톤에서 팀원 3명과 FastAPI로 백엔드를 맡았다. 결과 발표에서 우수상을 받았다.",
+  "known_items": [],
+  "open_applications": [],
+  "expect": {
+    "is_relevant": true,
+    "candidates": [
+      {
+        "action": "create",
+        "type": "project",
+        "skills_include": [
+          "FastAPI"
+        ]
+      },
+      {
+        "action": "create",
+        "type": "award",
+        "details": {
+          "rank": "우수상"
+        }
+      }
+    ],
+    "forbidden_numbers": [
+      "4",
+      "5",
+      "1",
+      "2"
+    ]
+  }
+}

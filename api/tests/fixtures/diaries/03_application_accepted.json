@@ -1,0 +1,25 @@
+{
+  "entry_date": "2026-11-18",
+  "entry": "OO캠프 최종 합격 메일 받았다!",
+  "known_items": [],
+  "open_applications": [
+    {
+      "id": "bbbbbbbb-0000-4000-8000-000000000001",
+      "title": "OO캠프 3기",
+      "organizer": "OO재단",
+      "status": "awaiting_result",
+      "result_announce_on": "2026-11-18",
+      "activity_start": "2026-12-01",
+      "activity_end": "2027-02-28"
+    }
+  ],
+  "expect": {
+    "is_relevant": true,
+    "application_updates": [
+      {
+        "application_id": "bbbbbbbb-0000-4000-8000-000000000001",
+        "to_status": "accepted"
+      }
+    ]
+  }
+}

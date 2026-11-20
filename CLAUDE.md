@@ -17,4 +17,19 @@
 
 ## 진행 상황
 
-- Phase 0(기반 구성): 시작 전
+- Phase 0(기반 구성): 대부분 끝났다. 남은 것: 실제 Supabase 프로젝트 연결, GitHub OAuth 앱 등록, CI 첫 실행 확인.
+- Phase 1(핵심 순환): 일기·추출·검토 큐·후속 질문·항목·병합·공개 프로필 기본이 동작한다. 남은 것: 실제 LLM 연결 뒤 골든 일기 평가(16장, `api/scripts/eval_extraction.py`), 임베딩(19장 확정 후).
+- 인계서와 다르게 정한 것은 `docs/decisions.md`에 있다.
+
+## 명령
+
+- API 테스트: `cd api && uv run pytest` (Postgres+pgvector 필요, 기본 `localhost:54322`, `TEST_DATABASE_ADMIN_URL`로 변경)
+- API 검사: `cd api && uv run ruff check . && uv run ruff format --check .`
+- 웹 검사: `cd web && pnpm lint && pnpm typecheck && pnpm test && pnpm build`
+
+## 코드 규칙
+
+- 사용자 데이터 쿼리는 `UserDB`(`api/app/db.py`)를 거친다. SQL에 `:user_id` 조건이 없으면 실행이 거부된다. 다른 사용자 리소스는 404다.
+- jsonb 파라미터는 `as_json()`으로 넘기고 SQL에서 `cast(:x as jsonb)`로 받는다. `:x::type` 형식은 SQLAlchemy `text()`와 충돌하므로 `cast()`를 쓴다.
+- 작업 핸들러는 `api/app/jobs/registry.py`에 등록하고, 두 번 실행돼도 결과가 같게 만든다.
+- LLM 출력은 `api/app/llm/validators.py`를 거친 값만 저장한다.

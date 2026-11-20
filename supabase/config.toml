@@ -1,0 +1,28 @@
+# Supabase CLI 로컬 개발 설정(`supabase start`). 값은 로컬 전용이다.
+project_id = "reportory"
+
+[api]
+port = 54321
+
+[db]
+port = 54322
+major_version = 16
+
+[studio]
+port = 54323
+
+[auth]
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000/auth/callback"]
+# 초기에는 초대한 이메일만 가입한다(인계서 19장). 운영에서는 대시보드에서 가입 허용 목록을 관리한다.
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = false
+
+[auth.external.github]
+enabled = true
+client_id = "env(SUPABASE_AUTH_GITHUB_CLIENT_ID)"
+secret = "env(SUPABASE_AUTH_GITHUB_SECRET)"

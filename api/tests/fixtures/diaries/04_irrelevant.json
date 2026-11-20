@@ -1,0 +1,9 @@
+{
+  "entry_date": "2026-11-18",
+  "entry": "비 와서 하루 종일 집에 있었다.",
+  "known_items": [],
+  "open_applications": [],
+  "expect": {
+    "is_relevant": false
+  }
+}

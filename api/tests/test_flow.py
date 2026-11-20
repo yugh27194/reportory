@@ -354,3 +354,28 @@ async def test_delete_entry_keeps_approved_items(make_user, mock_llm):
     items = (await user.client.get("/items")).json()["items"]
     assert [i["title"] for i in items] == ["OO 해커톤 프로젝트"]
     assert items[0]["source_count"] == 0
+
+
+async def test_merge_duplicate_proposal_into_existing_item(make_user, mock_llm, pg):
+    """검토 화면의 '기존 항목에 합치기': 제안 항목을 승인된 항목에 합치면 제안은 거절 처리된다."""
+    mock_llm.on("extract_entry", hackathon_extraction)
+    user = await make_user()
+    existing = (
+        await user.client.post("/items", json={"type": "project", "title": "OO 해커톤 프로젝트"})
+    ).json()
+    await write_and_extract(user)
+    dup = next(p for p in await pending(user) if p["item"]["type"] == "project")
+    assert dup["possible_duplicate_of"] == existing["id"]
+
+    r = await user.client.post(
+        "/items/merge", json={"keep_item_id": existing["id"], "merge_item_ids": [dup["item_id"]]}
+    )
+    assert r.status_code == 200
+    merged = r.json()
+    assert merged["skills"] == ["FastAPI"]
+    assert any(s["entry_id"] for s in merged["sources"])
+    status = await pg.fetchval(
+        "select status from proposals where id = $1", __import__("uuid").UUID(dup["id"])
+    )
+    assert status == "rejected"
+    assert all(p["id"] != dup["id"] for p in await pending(user))
