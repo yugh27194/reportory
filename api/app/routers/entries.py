@@ -103,7 +103,8 @@ async def get_entry(entry_id: UUID, db: UserDB = Depends(get_user_db)):
         id=entry_id,
     )
     entry["job"] = await db.one(
-        """select id, status from jobs where user_id = :user_id and type = 'extract_entry'
+        """select id, status, attempts, last_error, run_after from jobs
+           where user_id = :user_id and type = 'extract_entry'
              and payload ->> 'entry_id' = cast(:eid as text)
            order by created_at desc limit 1""",
         eid=str(entry_id),

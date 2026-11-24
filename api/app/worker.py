@@ -66,7 +66,8 @@ async def run_once() -> bool:
 
 async def _fail(job: dict, spec, exc: BaseException) -> None:
     attempts = job["attempts"] + 1
-    final = attempts >= job["max_attempts"] or spec is None
+    # 키·모델·결제·거절처럼 다시 해도 같은 오류는 바로 실패로 둔다(몇 분씩 '분석 중'에 머물지 않게).
+    final = attempts >= job["max_attempts"] or spec is None or getattr(exc, "permanent", False)
     log.warning(
         "job failed id=%s type=%s attempt=%s final=%s error=%s",
         job["id"],

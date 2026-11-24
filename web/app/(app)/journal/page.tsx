@@ -14,7 +14,7 @@ import type { Entry, Job, Profile, ProposalKind } from "@/lib/types";
 type EntryDetail = Entry & {
   proposals: { id: string; kind: ProposalKind; status: string; quote: string | null }[];
   sources: { id: string; item_id: string; item_title: string; item_status: string; quote: string }[];
-  job: { id: string; status: Job["status"] } | null;
+  job: { id: string; status: Job["status"]; attempts: number; last_error: string | null; run_after: string } | null;
 };
 
 const PROMPTS = [
@@ -139,8 +139,20 @@ function ExtractionStatus({ entry }: { entry: Entry }) {
 
   return (
     <div className="mt-4 space-y-3 border-t border-line/70 pt-4 text-sm">
-      {(status === "queued" || status === "running") && <Spinner label="기록을 분석하고 있다." />}
-      {status === "failed" && <p className="text-red-700">분석에 실패했다. 다시 분석을 눌러 보세요.</p>}
+      {(status === "queued" || status === "running") &&
+        (d.job && d.job.status === "queued" && d.job.attempts > 0 ? (
+          <p className="text-amber-800">
+            일시적인 오류로 {new Date(d.job.run_after).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}에 다시
+            시도한다. ({d.job.last_error})
+          </p>
+        ) : (
+          <Spinner label="기록을 분석하고 있다. 보통 10~30초 걸린다." />
+        ))}
+      {status === "failed" && (
+        <p className="text-red-700">
+          분석에 실패했다{d.job?.last_error ? `: ${d.job.last_error}` : "."} 원인을 고친 뒤 다시 분석을 눌러 보세요.
+        </p>
+      )}
       {status === null && <p className="text-muted">외부 LLM 처리에 동의하면 이 일기를 분석할 수 있다.</p>}
       {status === "succeeded" && job.data?.result && (
         <p className="flex flex-wrap items-center gap-2">

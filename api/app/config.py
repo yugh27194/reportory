@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     openai_api_key: str = ""  # 임베딩(OpenAI) 전용
     llm_model_extract: str = "claude-sonnet-5-5"
     llm_model_light: str = "claude-haiku-5-5"
+    # 생각 깊이(effort): 낮을수록 빠르고 싸다. 추출은 medium, 요약·이유 같은 가벼운 일은 low.
+    llm_effort_extract: str = "medium"
+    llm_effort_light: str = "low"
 
     embedding_provider: str = ""  # openai. 비어 있으면 임베딩을 계산하지 않는다
     embedding_model: str = "text-embedding-3-small"

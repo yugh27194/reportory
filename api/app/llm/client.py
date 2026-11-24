@@ -19,6 +19,7 @@ import httpx
 from pydantic import BaseModel, ValidationError
 
 from app.config import get_settings
+from app.llm.wire import drop_nulls, output_schema
 
 PROMPT_DIR = Path(__file__).parent / "prompts"
 ModelTier = Literal["extract", "light"]
@@ -31,7 +32,14 @@ INJECTION_GUARD = (
 
 
 class LLMError(Exception):
-    """두 번 시도해도 유효한 출력을 얻지 못했다."""
+    """유효한 출력을 얻지 못했다.
+
+    permanent=True면 다시 시도해도 결과가 같은 오류다(키·모델·결제·거절). 워커는 재시도하지 않는다.
+    """
+
+    def __init__(self, message: str, *, permanent: bool = False):
+        super().__init__(message)
+        self.permanent = permanent
 
 
 @dataclass
@@ -88,48 +96,90 @@ class Provider(Protocol):
         model: str,
         variables: dict[str, Any],
         attachments: list["Attachment"] | None = None,
+        effort: str | None = None,
     ) -> ProviderResult: ...
 
 
 class AnthropicProvider:
-    name = "anthropic"
-    url = "https://api.anthropic.com/v1/messages"
+    """공식 Anthropic SDK로 부른다. JSON은 구조화 출력(output_config.format)으로 받는다.
 
-    def __init__(self, api_key: str, timeout: float = 120.0):
-        self.api_key = api_key
-        self.timeout = timeout
+    Claude Sonnet 5.5·Opus 5.5는 도구 강제 호출(tool_choice tool/any)을 400으로 거부하므로 쓰지 않는다.
+    """
+
+    name = "anthropic"
+    FALLBACK_BETA = "server-side-fallback-2026-07-01"
+
+    def __init__(self, api_key: str, *, timeout: float = 180.0, client: Any = None):
+        if client is not None:
+            self.client = client
+        elif api_key:
+            import anthropic
+
+            self.client = anthropic.AsyncAnthropic(api_key=api_key, timeout=timeout, max_retries=2)
+        else:
+            self.client = None
+
+    @staticmethod
+    def _supports_fallback(model: str) -> bool:
+        # Haiku 5.5에는 서버 측 거절 대체 모델이 없다.
+        return not model.startswith("claude-haiku")
 
     async def generate(
-        self, *, purpose, system, user, schema, model, variables, attachments=None
+        self, *, purpose, system, user, schema, model, variables, attachments=None, effort=None
     ) -> ProviderResult:
-        if not self.api_key:
-            raise LLMError("ANTHROPIC_API_KEY가 설정되지 않았다.")
-        body = {
+        import anthropic
+
+        if self.client is None:
+            raise LLMError("ANTHROPIC_API_KEY가 설정되지 않았다.", permanent=True)
+        output_config: dict[str, Any] = {"format": {"type": "json_schema", "schema": schema}}
+        if effort:
+            output_config["effort"] = effort
+        kwargs: dict[str, Any] = {
             "model": model,
-            "max_tokens": 4096,
+            "max_tokens": 16000,
             "system": system,
             "messages": [{"role": "user", "content": _content(user, attachments)}],
-            "tools": [{"name": "output", "description": "결과", "input_schema": schema}],
-            "tool_choice": {"type": "tool", "name": "output"},
+            "output_config": output_config,
         }
-        headers = {
-            "x-api-key": self.api_key,
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json",
+        if self._supports_fallback(model):
+            kwargs["betas"] = [self.FALLBACK_BETA]
+            kwargs["fallbacks"] = "default"
+        try:
+            resp = await self.client.beta.messages.create(**kwargs)
+        except anthropic.AuthenticationError as exc:
+            raise LLMError("Anthropic API 키가 올바르지 않다(HTTP 401).", permanent=True) from exc
+        except anthropic.PermissionDeniedError as exc:
+            raise LLMError("이 API 키로는 쓸 수 없는 요청이다(HTTP 403).", permanent=True) from exc
+        except anthropic.NotFoundError as exc:
+            raise LLMError(f"모델을 찾을 수 없다(HTTP 404): {model}", permanent=True) from exc
+        except anthropic.BadRequestError as exc:
+            # 크레딧 부족, 잘못된 파라미터 등. 메시지는 API가 만든 설명이다.
+            raise LLMError(
+                f"요청 오류(HTTP 400): {str(exc.message)[:300]}", permanent=True
+            ) from exc
+        except anthropic.RateLimitError as exc:
+            raise LLMError("요청이 많아 잠시 막혔다(HTTP 429). 잠시 뒤 다시 시도한다.") from exc
+        except anthropic.APITimeoutError as exc:
+            raise LLMError("LLM 응답 시간이 초과됐다.") from exc
+        except anthropic.APIConnectionError as exc:
+            raise LLMError("LLM API에 연결하지 못했다.") from exc
+        except anthropic.APIStatusError as exc:
+            raise LLMError(f"LLM API 오류(HTTP {exc.status_code})") from exc
+        usage = getattr(resp, "usage", None)
+        tokens = {
+            "input_tokens": getattr(usage, "input_tokens", None),
+            "output_tokens": getattr(usage, "output_tokens", None),
         }
-        async with httpx.AsyncClient(timeout=self.timeout) as http:
-            resp = await http.post(self.url, json=body, headers=headers)
-        if resp.status_code >= 400:
-            # 응답 본문에는 입력 일부가 섞일 수 있어 상태 코드만 남긴다.
-            raise LLMError(f"LLM API 오류: HTTP {resp.status_code}")
-        payload = resp.json()
-        tool = next((c for c in payload.get("content", []) if c.get("type") == "tool_use"), None)
-        usage = payload.get("usage", {})
-        return ProviderResult(
-            data=tool["input"] if tool else None,
-            input_tokens=usage.get("input_tokens"),
-            output_tokens=usage.get("output_tokens"),
-        )
+        if resp.stop_reason == "refusal":
+            raise LLMError("모델이 이 요청을 거절했다.", permanent=True)
+        if resp.stop_reason == "max_tokens":
+            raise LLMError("출력이 너무 길어 중간에 잘렸다.")
+        text = next((b.text for b in resp.content if getattr(b, "type", None) == "text"), None)
+        try:
+            data = drop_nulls(json.loads(text)) if text else None
+        except json.JSONDecodeError:
+            data = None
+        return ProviderResult(data=data, **tokens)
 
 
 MockHandler = Callable[[dict[str, Any]], Any]
@@ -148,7 +198,7 @@ class MockProvider:
         self.handlers[purpose] = handler
 
     async def generate(
-        self, *, purpose, system, user, schema, model, variables, attachments=None
+        self, *, purpose, system, user, schema, model, variables, attachments=None, effort=None
     ) -> ProviderResult:
         self.calls.append(purpose)
         if purpose not in self.handlers:
@@ -182,9 +232,12 @@ CallLogger = Callable[[dict[str, Any]], Awaitable[None]]
 
 
 class LLMClient:
-    def __init__(self, provider: Provider, models: dict[str, str]):
+    def __init__(
+        self, provider: Provider, models: dict[str, str], efforts: dict[str, str] | None = None
+    ):
         self.provider = provider
         self.models = models
+        self.efforts = efforts or {}
 
     async def complete_json(
         self,
@@ -202,7 +255,7 @@ class LLMClient:
         model = self.models[model_tier]
         system = f"{prompt.system}\n\n{INJECTION_GUARD}"
         user = render_variables(variables)
-        json_schema = schema.model_json_schema()
+        json_schema = output_schema(schema)
         last_error = ""
         for attempt in range(2):
             message = (
@@ -225,6 +278,7 @@ class LLMClient:
                     model=model,
                     variables=variables,
                     attachments=attachments,
+                    effort=self.efforts.get(model_tier),
                 )
                 parsed = schema.model_validate(result.data)
             except ValidationError as exc:
@@ -232,12 +286,13 @@ class LLMClient:
                 parsed = None
             except (LLMError, httpx.HTTPError) as exc:
                 error = str(exc) if isinstance(exc, LLMError) else type(exc).__name__
+                permanent = isinstance(exc, LLMError) and exc.permanent
                 parsed = None
                 if log_call:
                     await log_call(
                         self._log_row(purpose, model, prompt, result, started, error, user_id)
                     )
-                raise LLMError(error) from exc
+                raise LLMError(error, permanent=permanent) from exc
             if log_call:
                 await log_call(
                     self._log_row(purpose, model, prompt, result, started, error, user_id)
@@ -290,7 +345,9 @@ def get_llm() -> LLMClient:
             provider = AnthropicProvider(s.anthropic_api_key)
         else:
             raise ValueError(f"지원하지 않는 LLM_PROVIDER: {s.llm_provider}")
-        _client = LLMClient(provider, models)
+        _client = LLMClient(
+            provider, models, {"extract": s.llm_effort_extract, "light": s.llm_effort_light}
+        )
     return _client
 
 

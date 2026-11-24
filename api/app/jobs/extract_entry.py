@@ -50,14 +50,16 @@ async def known_items(db: UserDB, entry_body: str) -> list[dict[str, Any]]:
         )
     else:
         rows = await db.all(f"select * from items where {where} order by updated_at desc")
+    skills_by_item: dict = {}
+    if rows:
+        for r in await db.all(
+            """select isk.item_id, s.name from item_skills isk join skills s on s.id = isk.skill_id
+               where isk.user_id = :user_id and isk.item_id = any(:ids) order by s.name""",
+            ids=[r["id"] for r in rows],
+        ):
+            skills_by_item.setdefault(r["item_id"], []).append(r["name"])
     out = []
     for r in rows:
-        skills = await db.all(
-            """select s.name from item_skills isk join skills s on s.id = isk.skill_id
-               where isk.item_id = :item_id and isk.user_id = :user_id
-               order by s.name limit 5""",
-            item_id=r["id"],
-        )
         out.append(
             {
                 "id": str(r["id"]),
@@ -67,7 +69,7 @@ async def known_items(db: UserDB, entry_body: str) -> list[dict[str, Any]]:
                 "start_date": r["start_date"],
                 "end_date": r["end_date"],
                 "is_ongoing": r["is_ongoing"],
-                "skills": [s["name"] for s in skills],
+                "skills": skills_by_item.get(r["id"], [])[:5],
             }
         )
     return out
