@@ -99,7 +99,11 @@ async def main() -> None:
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGINT, signal.SIGTERM):
-        loop.add_signal_handler(sig, stop.set)
+        try:
+            loop.add_signal_handler(sig, stop.set)
+        except NotImplementedError:
+            # Windows 이벤트 루프는 신호 처리기를 지원하지 않는다. Ctrl+C는 KeyboardInterrupt로 끝난다.
+            pass
     log.info("worker started")
     await requeue_stuck_jobs()
     while not stop.is_set():
@@ -113,4 +117,7 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        pass
