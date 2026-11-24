@@ -396,23 +396,22 @@ function StepReview({ next }: { next: () => void }) {
     onSuccess: refresh,
   });
   const items = (list.data?.proposals ?? []).filter((p) => p.kind === "create_item" && p.item);
-  const high = items.filter((p) => (p.confidence ?? 0) >= 0.8);
   const bulk = useMutation({
-    mutationFn: () => post("/proposals/bulk-accept", { ids: high.map((p) => p.id) }),
+    mutationFn: () => post("/proposals/bulk-accept", { ids: items.map((p) => p.id) }),
     onSuccess: refresh,
   });
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">찾아낸 항목을 확인해요</h1>
-        <p className="mt-1 text-muted">맞는 것은 승인하고, 틀린 것은 거절한다. 자세히 고치려면 검토 화면을 쓴다.</p>
+        <p className="mt-1 text-muted">맞는 것은 추가하고, 틀린 것은 뺀다. 제목은 나중에 포트폴리오에서 고칠 수 있다.</p>
       </div>
       <div className="flex flex-wrap gap-2">
-        <button className="btn btn-primary" disabled={!high.length || bulk.isPending} onClick={() => bulk.mutate()}>
-          <Check size={16} /> 신뢰도 높은 {high.length}건 모두 승인
+        <button className="btn btn-primary" disabled={!items.length || bulk.isPending} onClick={() => bulk.mutate()}>
+          <Check size={16} /> {items.length}건 모두 추가
         </button>
         <Link href="/review" className="btn">
-          검토 화면에서 자세히 보기
+          확인할 항목 화면에서 자세히 보기
         </Link>
       </div>
       <ErrorText error={bulk.error ?? act.error} />
@@ -430,16 +429,15 @@ function StepReview({ next }: { next: () => void }) {
               <p className="text-xs text-muted">
                 {ITEM_TYPE_LABELS[p.item!.type]}
                 {p.import_source ? ` · ${SOURCE_LABEL[p.import_source]}` : ""}
-                {p.confidence !== null ? ` · 신뢰도 ${Math.round(p.confidence * 100)}%` : ""}
               </p>
               {p.quote && <p className="mt-1 line-clamp-2 text-xs text-muted">“{p.quote}”</p>}
             </div>
             <div className="flex flex-col gap-1">
               <button className="btn btn-primary btn-sm" onClick={() => act.mutate({ id: p.id, ok: true })}>
-                승인
+                추가
               </button>
               <button className="btn btn-ghost btn-sm" onClick={() => act.mutate({ id: p.id, ok: false })}>
-                거절
+                빼기
               </button>
             </div>
           </li>

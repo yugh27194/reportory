@@ -159,7 +159,7 @@ async def test_bulk_accept_requires_high_confidence(make_user, mock_llm):
     assert len((await user.client.get("/items")).json()["items"]) == 2
 
 
-async def test_bulk_accept_rejects_low_confidence(make_user, mock_llm):
+async def test_bulk_accept_ignores_confidence(make_user, mock_llm):
     def low(variables):
         data = hackathon_extraction(variables)
         data["items"][1]["confidence"] = 0.6
@@ -170,8 +170,8 @@ async def test_bulk_accept_rejects_low_confidence(make_user, mock_llm):
     await write_and_extract(user)
     ids = [p["id"] for p in await pending(user)]
     r = await user.client.post("/proposals/bulk-accept", json={"ids": ids})
-    assert r.status_code == 422
-    assert (await user.client.get("/items")).json()["items"] == []
+    assert r.status_code == 200  # 신뢰도와 관계없이 사용자가 고른 것은 모두 승인한다
+    assert len((await user.client.get("/items")).json()["items"]) == 2
 
 
 async def test_reextract_rejects_pending_and_keeps_approved(make_user, mock_llm, pg):

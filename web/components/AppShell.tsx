@@ -27,7 +27,7 @@ import type { Notification, Profile } from "@/lib/types";
 const NAV = [
   { href: "/dashboard", label: "홈", icon: Home },
   { href: "/journal", label: "일기", icon: NotebookPen },
-  { href: "/review", label: "검토", icon: ClipboardCheck, badge: true },
+  { href: "/review", label: "확인할 항목", icon: ClipboardCheck, badge: true, onlyWhenPending: true },
   { href: "/portfolio", label: "포트폴리오", icon: LayoutGrid },
   { href: "/documents", label: "문서", icon: FileText },
   { href: "/summaries", label: "요약", icon: Sparkles },
@@ -136,8 +136,9 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pending = (data?.proposals ?? 0) + (data?.followups ?? 0);
   return (
     <nav className="space-y-0.5">
-      {NAV.map(({ href, label, icon: Icon, badge }) => {
+      {NAV.map(({ href, label, icon: Icon, badge, onlyWhenPending }) => {
         const active = path === href || path.startsWith(`${href}/`);
+        if (onlyWhenPending && pending === 0 && !active) return null;
         return (
           <Link
             key={href}

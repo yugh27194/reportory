@@ -13,11 +13,12 @@ function rangeLabel(s: PeriodSummary) {
   const a = new Date(s.period_start);
   const b = new Date(s.period_end);
   if (s.period === "month") return `${a.getFullYear()}년 ${a.getMonth() + 1}월`;
+  if (s.period === "day") return `${a.getMonth() + 1}월 ${a.getDate()}일 ${"일월화수목금토"[a.getDay()]}요일`;
   return `${a.getMonth() + 1}월 ${a.getDate()}일 ~ ${b.getMonth() + 1}월 ${b.getDate()}일`;
 }
 
 export default function SummariesPage() {
-  const [period, setPeriod] = useState<"week" | "month">("week");
+  const [period, setPeriod] = useState<"day" | "week" | "month">("day");
   const list = useQuery({
     queryKey: ["summaries", period],
     queryFn: () => api<{ summaries: PeriodSummary[] }>(`/summaries?period=${period}`),
@@ -27,12 +28,13 @@ export default function SummariesPage() {
       <PageHeader
         eyebrow="Summaries"
         title="돌아보기"
-        description="주간 요약은 일요일 밤, 월간 요약은 매월 1일 아침에 만들어진다."
+        description="하루 요약은 매일 밤, 주간 요약은 일요일 밤, 월간 요약은 그달 마지막 날 밤에 만들어진다."
         actions={
           <Tabs
             value={period}
             onChange={setPeriod}
             tabs={[
+              { key: "day", label: "일간" },
               { key: "week", label: "주간" },
               { key: "month", label: "월간" },
             ]}

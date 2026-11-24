@@ -22,11 +22,14 @@ TYPE_LABELS = {
 }
 
 
-def fallback_summary(entries: list[dict], changes: list[dict]) -> PeriodSummary:
+def fallback_summary(
+    entries: list[dict], changes: list[dict], period: str = "week"
+) -> PeriodSummary:
     """LLM 없이 쓰는 요약: 일기 요약과 승인 항목을 목록으로 묶는다."""
     lines = [f"- {e['date'].strftime('%m/%d')} {e['summary']}" for e in entries[:8]]
     if changes:
-        lines.append(f"- 이 기간에 포트폴리오 항목 {len(changes)}개를 승인했다.")
+        when = {"day": "오늘", "week": "이번 주", "month": "이번 달"}.get(period, "이 기간에")
+        lines.append(f"- {when} 포트폴리오 항목 {len(changes)}개를 승인했다.")
     return PeriodSummary(
         summary_md="\n".join(lines),
         highlights=[
@@ -85,7 +88,7 @@ async def run(db: UserDB, payload: dict) -> dict:
         except LLMError:
             result = None
     if result is None:
-        result = fallback_summary(entries, changes)
+        result = fallback_summary(entries, changes, period)
     # 줄마다(목록 항목마다) 따로 검증해, 근거 없는 숫자가 든 줄만 지운다.
     kept = []
     for line in result.summary_md.splitlines():
@@ -115,12 +118,16 @@ async def run(db: UserDB, payload: dict) -> dict:
         md=summary_md or "이 기간의 기록을 요약하지 못했다.",
         h=as_json(highlights),
     )
-    label = "주간" if period == "week" else "월간"
+    if period == "day":
+        title = f"{start.strftime('%m/%d')} 하루 요약이 나왔다."
+    else:
+        label = "주간" if period == "week" else "월간"
+        title = f"{start.strftime('%m/%d')}~{end.strftime('%m/%d')} {label} 요약이 나왔다."
     await db.execute(
         """insert into notifications (user_id, type, title, link, ref_id)
            values (:user_id, 'summary_ready', :title, '/summaries', :ref)
            on conflict do nothing""",
-        title=f"{start.strftime('%m/%d')}~{end.strftime('%m/%d')} {label} 요약이 나왔다.",
+        title=title,
         ref=summary_id,
     )
     return {"summary_id": str(summary_id), "entries": len(entries), "changes": len(changes)}

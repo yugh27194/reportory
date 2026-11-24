@@ -77,7 +77,7 @@ def test_golden_hackathon_two_creates_keep_only_supported_numbers():
     assert report.dropped_values == 1
 
 
-def test_low_confidence_and_unknown_target_are_dropped():
+def test_low_confidence_is_kept_but_unknown_target_is_dropped():
     known = uuid.uuid4()
     result, report, _ = run(
         [
@@ -87,8 +87,9 @@ def test_low_confidence_and_unknown_target_are_dropped():
         ],
         known=[known],
     )
-    assert len(result.items) == 1 and result.items[0].target_item_id == known
-    assert report.dropped_candidates == 2
+    # 신뢰도가 낮아도 버리지 않는다. 모르는 항목 id는 버린다.
+    assert len(result.items) == 2 and result.items[1].target_item_id == known
+    assert report.dropped_candidates == 1
 
 
 def test_dates_out_of_range_or_future_end_are_cleared():

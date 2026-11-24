@@ -173,7 +173,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
         <footer className="mt-16 flex flex-wrap items-center gap-2 border-t border-line pt-5 text-xs text-muted">
           <span>최종 갱신일 {new Date(data.last_updated).toLocaleDateString("ko-KR")}</span>
           <span className="ml-auto">
-            <Brand className="text-xs" />로 만든 프로필
+            <Brand className="text-xs" mark={false} />로 만든 프로필
           </span>
         </footer>
       </div>

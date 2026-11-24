@@ -42,11 +42,13 @@ async def mark_read(body: ReadIn, db: UserDB = Depends(get_user_db)):
 
 
 @router.get("/summaries")
-async def summaries(period: Literal["week", "month"] = "week", db: UserDB = Depends(get_user_db)):
+async def summaries(
+    period: Literal["day", "week", "month"] = "week", db: UserDB = Depends(get_user_db)
+):
     rows = await db.all(
         """select id, period, period_start, period_end, summary_md, highlights, created_at
            from period_summaries where user_id = :user_id and period = cast(:p as period_type)
-           order by period_start desc limit 52""",
+           order by period_start desc limit 60""",
         p=period,
     )
     return {"summaries": rows}

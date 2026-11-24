@@ -18,8 +18,6 @@ import {
   type Proposal,
 } from "@/lib/types";
 
-const BULK_MIN = 0.8;
-
 const SOURCE_LABELS: Record<string, string> = {
   resume_file: "이력서",
   github: "GitHub",
@@ -265,7 +263,6 @@ function ProposalCard({ p, selected, toggle }: { p: Proposal; selected: boolean;
     onSuccess: done,
   });
   const busy = accept.isPending || reject.isPending || mergeIntoDuplicate.isPending;
-  const bulkable = (p.confidence ?? 0) >= BULK_MIN;
   const item = p.item;
 
   function approve() {
@@ -284,9 +281,6 @@ function ProposalCard({ p, selected, toggle }: { p: Proposal; selected: boolean;
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <span className="chip">{PROPOSAL_KIND_LABELS[p.kind]}</span>
             {item && <span className="text-muted">{ITEM_TYPE_LABELS[item.type]}</span>}
-            {p.confidence !== null && (
-              <span className={bulkable ? "text-muted" : "text-amber-700"}>신뢰도 {Math.round(p.confidence * 100)}%</span>
-            )}
           </div>
           <p className="mt-1 font-semibold">{item?.title ?? "증빙"}</p>
           <p className="text-xs text-muted">{sourceLabel(p)}</p>
@@ -296,9 +290,7 @@ function ProposalCard({ p, selected, toggle }: { p: Proposal; selected: boolean;
           className="mt-1 h-4 w-4 accent-[#224B46]"
           checked={selected}
           onChange={toggle}
-          disabled={!bulkable}
-          aria-label="일괄 승인에 넣기"
-          title={bulkable ? "일괄 승인에 넣기" : "신뢰도 80% 미만은 하나씩 확인해야 한다"}
+          aria-label="한꺼번에 승인할 항목으로 고르기"
         />
       </header>
       <Changes p={p} resolutions={resolutions} setResolution={(f, v) => setResolutions((r) => ({ ...r, [f]: v }))} />
@@ -381,7 +373,6 @@ export default function ReviewPage() {
   const qc = useQueryClient();
   const [tab, setTab] = useState<"proposals" | "followups">("proposals");
   const [kind, setKind] = useState<string>("all");
-  const [highOnly, setHighOnly] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const proposals = useQuery({
@@ -401,10 +392,7 @@ export default function ReviewPage() {
   });
 
   const all = proposals.data?.proposals ?? [];
-  const list = all.filter(
-    (p) => (kind === "all" || p.kind === kind) && (!highOnly || (p.confidence ?? 0) >= BULK_MIN),
-  );
-  const bulkable = list.filter((p) => (p.confidence ?? 0) >= BULK_MIN);
+  const list = all.filter((p) => kind === "all" || p.kind === kind);
   const toggle = (id: string) =>
     setSelected((s) => {
       const next = new Set(s);
@@ -417,9 +405,9 @@ export default function ReviewPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="Review"
-        title="검토 큐"
-        description="찾아낸 기록을 확인하고 승인한 것만 포트폴리오에 넣는다."
+        eyebrow="To review"
+        title="확인할 항목"
+        description="이력서·GitHub·증빙에서 찾은 후보와 아직 고르지 않은 일기 후보를 모아 보여 준다. 일기 후보는 일기 화면에서도 바로 고를 수 있다."
         actions={
           <Tabs
             value={tab}
@@ -444,14 +432,10 @@ export default function ReviewPage() {
                 {k === "all" ? "전체" : PROPOSAL_KIND_LABELS[k as Proposal["kind"]]}
               </button>
             ))}
-            <label className="ml-2 flex items-center gap-1.5 text-sm text-muted">
-              <input type="checkbox" className="accent-[#224B46]" checked={highOnly} onChange={(e) => setHighOnly(e.target.checked)} />
-              신뢰도 80% 이상만
-            </label>
             <div className="ml-auto flex gap-2">
-              {bulkable.length > 0 && (
-                <button className="btn btn-sm" onClick={() => setSelected(new Set(bulkable.map((p) => p.id)))}>
-                  모두 선택({bulkable.length})
+              {list.length > 0 && (
+                <button className="btn btn-sm" onClick={() => setSelected(new Set(list.map((p) => p.id)))}>
+                  모두 선택({list.length})
                 </button>
               )}
               <button className="btn btn-primary btn-sm" disabled={selected.size === 0 || bulk.isPending} onClick={() => bulk.mutate()}>

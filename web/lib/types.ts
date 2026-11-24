@@ -296,7 +296,7 @@ export type Notification = {
 
 export type PeriodSummary = {
   id: string;
-  period: "week" | "month";
+  period: "day" | "week" | "month";
   period_start: string;
   period_end: string;
   summary_md: string;

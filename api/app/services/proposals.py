@@ -15,8 +15,6 @@ from app.services.items import add_source, apply_patch, filter_details, get_item
 from app.services.jobs import enqueue
 from app.services.skills import link_skills
 
-BULK_MIN_CONFIDENCE = 0.8
-
 
 class ItemEdit(BaseModel):
     """create_item 제안을 '수정 후 승인'할 때 받는 값."""
@@ -232,8 +230,6 @@ async def bulk_accept(db: UserDB, ids: list[UUID]) -> list[dict]:
         raise not_found("제안을 찾을 수 없다.")
     if any(r["status"] != "pending" for r in rows):
         raise invalid_transition("이미 처리한 제안이 섞여 있다.")
-    if any(r["confidence"] is None or r["confidence"] < BULK_MIN_CONFIDENCE for r in rows):
-        raise validation_error("신뢰도 0.8 미만인 제안은 일괄 승인할 수 없다.")
     # create_item을 먼저 승인해야 같은 항목의 update·link가 승인된 항목에 붙는다.
     kinds = {r["id"]: r["kind"] for r in rows}
     ordered = sorted(ids, key=lambda i: 0 if kinds[i] == "create_item" else 1)

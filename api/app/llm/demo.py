@@ -109,7 +109,7 @@ def extract_entry(variables: dict[str, Any]) -> dict[str, Any]:
             )
             continue
         item_type = next((t for t, rule in TYPE_RULES if rule.search(sentence)), None)
-        if item_type is None or item_type in used_types:
+        if item_type is None:
             continue
         used_types.add(item_type)
         items.append(

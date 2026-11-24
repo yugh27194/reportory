@@ -10,7 +10,6 @@ from uuid import UUID
 
 from app.llm.schemas import DETAILS_KEYS, ExtractionResult, ItemCandidate
 
-MIN_CONFIDENCE = 0.5
 DATE_RANGE_YEARS = 10
 
 _WS = re.compile(r"\s+")
@@ -83,9 +82,7 @@ def clean_candidate(
     report: ValidationReport,
 ) -> ItemCandidate | None:
     """후보 하나를 검증한다. 버려야 하면 None, 일부 값만 틀리면 그 값만 지운 사본을 돌려준다."""
-    if cand.confidence < MIN_CONFIDENCE:
-        report.note("low_confidence")
-        return None
+    # 신뢰도로는 거르지 않는다(최대한 많이 뽑고 사용자가 승인·거절한다). 근거 대조는 그대로 한다.
     if not quote_in_source(cand.quote, source):
         report.note("quote_not_in_source")
         return None
@@ -166,11 +163,7 @@ def validate_extraction(
 
     updates = []
     for upd in result.application_updates if result.is_relevant else []:
-        if (
-            upd.confidence < MIN_CONFIDENCE
-            or upd.application_id not in open_application_ids
-            or not quote_in_source(upd.quote, source)
-        ):
+        if upd.application_id not in open_application_ids or not quote_in_source(upd.quote, source):
             report.dropped_application_updates += 1
             continue
         if upd.result_date is not None and not date_in_range(upd.result_date, reference_date):

@@ -5,10 +5,11 @@ import { CheckCircle2, ChevronLeft, ChevronRight, NotebookPen, Pencil, RefreshCw
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ErrorText } from "@/components/ErrorText";
+import { EntryReview } from "@/components/InlineReview";
 import { EmptyState, PageHeader, Spinner } from "@/components/ui";
 import { api, patch, post } from "@/lib/api";
 import { todayKST } from "@/lib/text";
-import { PROPOSAL_KIND_LABELS, type Entry, type Job, type Profile, type ProposalKind } from "@/lib/types";
+import type { Entry, Job, Profile, ProposalKind } from "@/lib/types";
 
 type EntryDetail = Entry & {
   proposals: { id: string; kind: ProposalKind; status: string; quote: string | null }[];
@@ -134,7 +135,6 @@ function ExtractionStatus({ entry }: { entry: Entry }) {
   }, [status, qc]);
   const d = detail.data;
   if (!d) return null;
-  const pending = d.proposals.filter((p) => p.status === "pending");
   const linked = d.sources.filter((s) => s.item_status === "approved");
 
   return (
@@ -145,24 +145,12 @@ function ExtractionStatus({ entry }: { entry: Entry }) {
       {status === "succeeded" && job.data?.result && (
         <p className="flex flex-wrap items-center gap-2">
           <CheckCircle2 size={16} className="text-accent-2" />
-          제안 {String(job.data.result.proposals ?? 0)}건, 질문 {String(job.data.result.followups ?? 0)}건을 찾았다.
-          {pending.length > 0 && (
-            <Link href="/review" className="font-medium text-deep underline underline-offset-2">
-              검토 큐로 가기
-            </Link>
-          )}
+          {Number(job.data.result.proposals ?? 0) > 0
+            ? "분석을 마쳤다."
+            : "이 일기에서는 새로 추가할 경험을 찾지 못했다."}
         </p>
       )}
-      {pending.length > 0 && (
-        <ul className="space-y-1.5">
-          {pending.map((p) => (
-            <li key={p.id} className="flex gap-2 text-muted">
-              <span className="chip shrink-0">{PROPOSAL_KIND_LABELS[p.kind]}</span>
-              <span className="line-clamp-1">“{p.quote}”</span>
-            </li>
-          ))}
-        </ul>
-      )}
+      <EntryReview entryId={entry.id} />
       {linked.length > 0 && (
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs text-muted">연결된 항목</span>

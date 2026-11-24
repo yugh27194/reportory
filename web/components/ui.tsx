@@ -11,13 +11,25 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
+import { LogoMark } from "@/components/Logo";
 import type { ItemType } from "@/lib/types";
 
-/** 서비스 표기: re:portory (콜론은 강조색). */
-export function Brand({ className = "", dark = false }: { className?: string; dark?: boolean }) {
+/** 서비스 표기: :P 로고 + re:portory(콜론은 강조색). */
+export function Brand({
+  className = "",
+  dark = false,
+  mark = true,
+}: {
+  className?: string;
+  dark?: boolean;
+  mark?: boolean;
+}) {
   return (
-    <span className={`font-bold tracking-tight ${dark ? "text-white" : "text-ink"} ${className}`}>
-      re<span className="text-accent">:</span>portory
+    <span className={`inline-flex items-center gap-2 font-bold tracking-tight ${dark ? "text-white" : "text-ink"} ${className}`}>
+      {mark && <LogoMark size={28} className={dark ? "ring-1 ring-white/15 rounded-[8px]" : ""} />}
+      <span>
+        re<span className="text-accent">:</span>portory
+      </span>
     </span>
   );
 }

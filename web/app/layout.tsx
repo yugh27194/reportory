@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { SERVICE_NAME, env } from "@/lib/env";
+import { IntroSplash, introBootScript } from "@/components/IntroSplash";
 import { Providers } from "./providers";
 import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
 import "./globals.css";
@@ -13,8 +14,12 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ko">
+    <html lang="ko" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: introBootScript }} />
+      </head>
       <body>
+        <IntroSplash />
         <Providers>{children}</Providers>
       </body>
     </html>

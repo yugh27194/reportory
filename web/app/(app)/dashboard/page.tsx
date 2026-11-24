@@ -45,7 +45,7 @@ export default function DashboardPage() {
             </Link>
             {pending > 0 && (
               <Link href="/review" className="btn border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white">
-                <ClipboardCheck size={16} /> 검토 {pending}건
+                <ClipboardCheck size={16} /> 확인할 항목 {pending}개
               </Link>
             )}
           </div>
@@ -70,7 +70,7 @@ export default function DashboardPage() {
 
       <section className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatCard label="포트폴리오 항목" value={s?.items_total ?? "–"} hint="승인한 항목" href="/portfolio" tone="ink" />
-        <StatCard label="검토 대기" value={pending} hint="제안과 질문" href="/review" tone="mint" />
+        <StatCard label="확인할 항목" value={pending} hint="고르지 않은 경험 후보" href="/review" tone="mint" />
         <StatCard label="이번 주 일기" value={s?.entries.this_week ?? "–"} hint={`전체 ${s?.entries.total ?? 0}편`} href="/journal" />
         <StatCard label="문서" value={s?.documents ?? "–"} hint={`증빙 ${s?.evidence ?? 0}개`} href="/documents" />
       </section>
@@ -125,7 +125,7 @@ export default function DashboardPage() {
             </>
           ) : (
             <p className="text-sm text-muted">
-              일기가 쌓이면 매주 일요일 밤과 매월 1일에 기록을 돌아보는 요약이 만들어진다.
+              일기를 쓰면 그날 밤, 일요일 밤, 월 마지막 날 밤에 기록을 돌아보는 요약이 만들어진다.
             </p>
           )}
         </section>

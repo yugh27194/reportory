@@ -9,7 +9,7 @@ from datetime import date
 import httpx
 
 from app.jobs import account
-from app.routers.internal import previous_month, week_range
+from app.routers.internal import is_last_day_of_month, month_range, week_range
 from app.storage import get_storage
 from tests.conftest import CRON_SECRET, drain_jobs
 from tests.pdfgen import make_pdf
@@ -21,8 +21,10 @@ CRON = {"X-Cron-Secret": CRON_SECRET}
 
 def test_period_ranges():
     assert week_range(date(2026, 11, 29)) == (date(2026, 11, 23), date(2026, 11, 29))
-    assert previous_month(date(2026, 12, 1)) == (date(2026, 11, 1), date(2026, 11, 30))
-    assert previous_month(date(2026, 1, 1)) == (date(2025, 12, 1), date(2025, 12, 31))
+    assert month_range(date(2026, 11, 30)) == (date(2026, 11, 1), date(2026, 11, 30))
+    assert month_range(date(2026, 2, 28)) == (date(2026, 2, 1), date(2026, 2, 28))
+    assert month_range(date(2026, 12, 31)) == (date(2026, 12, 1), date(2026, 12, 31))
+    assert is_last_day_of_month(date(2026, 11, 30)) and not is_last_day_of_month(date(2026, 11, 29))
 
 
 async def test_weekly_summary_and_notifications(make_user, mock_llm, anon, pg):
@@ -162,6 +164,34 @@ async def test_demo_period_summary_keeps_lines(make_user, monkeypatch, anon):
         await drain_jobs()
         s = (await user.client.get("/summaries")).json()["summaries"][0]
         assert s["summary_md"].startswith("- ")
-        assert "항목 1개를 승인했다" in s["summary_md"]
+        assert "이번 주 포트폴리오 항목 1개를 승인했다" in s["summary_md"]
     finally:
         llm_client.set_llm(None)
+
+
+async def test_daily_and_month_end_summaries(make_user, mock_llm, anon):
+    from app.routers.internal import today_kst
+
+    mock_llm.on("extract_entry", hackathon_extraction)
+    mock_llm.on(
+        "period_summary", lambda v: {"summary_md": "해커톤에서 백엔드를 맡았다.", "highlights": []}
+    )
+    user = await make_user()
+    await write_and_extract(user, entry_date=today_kst().isoformat())
+
+    r = await anon.post("/internal/cron/daily_summary", headers=CRON)
+    assert r.json()["users"] >= 1
+    await drain_jobs()
+    days = (await user.client.get("/summaries", params={"period": "day"})).json()["summaries"]
+    assert len(days) == 1 and days[0]["period_start"] == days[0]["period_end"]
+    notes = (await user.client.get("/notifications")).json()["notifications"]
+    assert any("하루 요약" in n["title"] for n in notes)
+
+    # 월간 요약은 말일에만 돈다(force로 시험).
+    r = await anon.post("/internal/cron/monthly_summary", headers=CRON)
+    if not is_last_day_of_month(today_kst()):
+        assert r.json()["skipped"] == "not_last_day_of_month"
+    await anon.post("/internal/cron/monthly_summary", params={"force": True}, headers=CRON)
+    await drain_jobs()
+    months = (await user.client.get("/summaries", params={"period": "month"})).json()["summaries"]
+    assert len(months) == 1

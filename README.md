@@ -79,6 +79,20 @@ http://localhost:3000 에서 로그인한다.
 
 Anthropic 키가 아직 없으면 `api/.env`에 `LLM_PROVIDER=demo`를 넣는다. 외부 API 없이 규칙으로 후보를 만드는 데모 분석이라 품질은 낮지만, 전체 흐름(일기 → 검토 → 포트폴리오)을 확인할 수 있다. `OPENAI_API_KEY`가 비어 있으면 임베딩 없이 동작한다. 로컬 Supabase가 보낸 로그인 메일은 http://localhost:54324 (Inbucket)에서 확인한다.
 
+## 정기 실행(Supabase Cron)
+
+Supabase Cron이 `POST /api/v1/internal/cron/{task}`를 `X-Cron-Secret` 헤더와 함께 부른다. 시각은 KST, cron 식은 UTC다.
+
+| task | 시각(KST) | cron 식(UTC) |
+| --- | --- | --- |
+| `daily_summary` | 매일 23:00 | `0 14 * * *` |
+| `weekly_summary` | 일요일 23:10 | `10 14 * * 0` |
+| `monthly_summary` | 매일 23:20(말일에만 실행) | `20 14 * * *` |
+| `evidence_expiry` | 매일 09:30 | `30 0 * * *` |
+| `requeue_stuck_jobs` | 15분마다 | `*/15 * * * *` |
+
+로컬에서 바로 시험하려면 `api/.env`에 `CRON_SECRET`을 정하고 같은 값을 헤더로 보낸다.
+
 ## 테스트
 
 API 테스트는 Postgres(pgvector 포함)에 테스트 DB를 새로 만들어 돌린다. 기본 접속 주소는 `postgresql://postgres@localhost:54322/postgres`이고 `TEST_DATABASE_ADMIN_URL`로 바꿀 수 있다. LLM은 mock으로 대체한다.

@@ -20,15 +20,19 @@ def today_kst() -> date:
 
 
 def week_range(today: date) -> tuple[date, date]:
-    """이번 주 월요일~일요일(일요일 21:00 실행 기준)."""
+    """이번 주 월요일~일요일(일요일 밤 실행 기준)."""
     start = today - timedelta(days=today.weekday())
     return start, start + timedelta(days=6)
 
 
-def previous_month(today: date) -> tuple[date, date]:
-    first_this = today.replace(day=1)
-    end = first_this - timedelta(days=1)
-    return end.replace(day=1), end
+def month_range(today: date) -> tuple[date, date]:
+    """이번 달 1일~말일(월 마지막 날 밤 실행 기준)."""
+    first_next = (today.replace(day=28) + timedelta(days=4)).replace(day=1)
+    return today.replace(day=1), first_next - timedelta(days=1)
+
+
+def is_last_day_of_month(today: date) -> bool:
+    return (today + timedelta(days=1)).day == 1
 
 
 async def _enqueue_summaries(db: SystemDB, period: str, start: date, end: date) -> int:
@@ -65,14 +69,21 @@ async def _evidence_expiry(db: SystemDB) -> int:
 
 
 @router.post("/internal/cron/{task}")
-async def cron(task: str, db: SystemDB = Depends(get_system_db)):
+async def cron(task: str, force: bool = False, db: SystemDB = Depends(get_system_db)):
     if task == "requeue_stuck_jobs":
         return {"task": task, "requeued": await requeue_stuck_jobs()}
+    if task == "daily_summary":
+        today = today_kst()
+        return {"task": task, "users": await _enqueue_summaries(db, "day", today, today)}
     if task == "weekly_summary":
         start, end = week_range(today_kst())
         return {"task": task, "users": await _enqueue_summaries(db, "week", start, end)}
     if task == "monthly_summary":
-        start, end = previous_month(today_kst())
+        # Cron은 매일 밤 부르고, 월 마지막 날에만 실행한다(cron 식으로 '말일'을 쓸 수 없다).
+        today = today_kst()
+        if not (is_last_day_of_month(today) or force):
+            return {"task": task, "skipped": "not_last_day_of_month"}
+        start, end = month_range(today)
         return {"task": task, "users": await _enqueue_summaries(db, "month", start, end)}
     if task == "evidence_expiry":
         return {"task": task, "notified": await _evidence_expiry(db)}
