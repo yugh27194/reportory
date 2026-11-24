@@ -190,3 +190,4 @@ def process_evidence(variables: dict[str, Any]) -> dict[str, Any]:
 
 
 HANDLERS["process_evidence"] = process_evidence
+HANDLERS["import_resume"] = extract_entry
