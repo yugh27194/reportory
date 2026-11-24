@@ -105,7 +105,11 @@ async def main() -> None:
         except NotImplementedError:
             # Windows 이벤트 루프는 신호 처리기를 지원하지 않는다. Ctrl+C는 KeyboardInterrupt로 끝난다.
             pass
-    log.info("worker started")
+    log.info(
+        "worker started (llm=%s, anthropic key=%s)",
+        settings.llm_provider,
+        "set" if settings.anthropic_api_key else "missing",
+    )
     await requeue_stuck_jobs()
     while not stop.is_set():
         processed = await run_once()

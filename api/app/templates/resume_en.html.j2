@@ -1,19 +1,69 @@
 {% extends "base.html.j2" %}
 {% import "_macros.html.j2" as m %}
+{# Harvard 커리어센터 bullet 양식 + Jake's Resume: 한 단, 1쪽, Education 먼저, 역연대순 #}
+{% block page_margin %}12mm 14mm 12mm 14mm{% endblock %}
 {% block style %}
-h1 { font-size: 20pt; }
-h2 { margin-top: 10pt; }
-.entry { margin-bottom: 5pt; }
+body { font-family: var(--serif); font-size: 10.3pt; line-height: 1.28; }
+header { text-align: center; margin-bottom: 4pt; }
+header h1 { font-size: 21pt; font-weight: 700; margin: 0; letter-spacing: 0.01em; }
+header .contact { font-size: 9.5pt; margin-top: 2pt; }
+header .contact span + span::before { content: "  |  "; white-space: pre; color: #888; }
+header .headline { font-style: italic; font-size: 9.8pt; margin-top: 1pt; }
+h2 { font-size: 10.8pt; font-weight: 700; font-variant: small-caps; letter-spacing: 0.06em; margin: 8pt 0 3pt;
+     padding-bottom: 1pt; border-bottom: 0.8pt solid var(--rule); text-transform: lowercase; }
+h2::first-letter { text-transform: uppercase; }
+.entry { margin: 0 0 4.5pt; break-inside: avoid; }
+.row { display: flex; justify-content: space-between; gap: 8pt; }
+.row .r { white-space: nowrap; }
+.b { font-weight: 700; }
+.i { font-style: italic; }
+ul.lines { margin: 1pt 0 0; padding-left: 13pt; }
+ul.lines li { margin: 0; padding-left: 1pt; }
+.oneline { margin: 0.5pt 0; }
 {% endblock %}
 {% block body %}
-{{ m.header(c, x) }}
-{% if summary %}<p style="margin: 6pt 0 0">{{ summary }}</p>{% endif %}
-{% for sec in x.sections if sec['items'] %}
-<section data-section="{{ sec.key }}"><h2>{{ sec.label }}</h2>
-  {% for id in sec['items'] %}{{ m.entry(x['items'][id], en=true) }}{% endfor %}
+{% set P = x.profile %}
+<header>
+  <h1>{{ P.name_en or P.name }}</h1>
+  <div class="contact">{% if P.email %}<span>{{ P.email }}</span>{% endif %}{% for l in P.links %}<span>{{ l.url | replace('https://', '') | replace('http://', '') }}</span>{% endfor %}</div>
+  {% if summary %}<div class="headline" data-edit="summary">{{ summary }}</div>{% endif %}
+</header>
+
+{% for sec in x.sections %}{% set ids = sec['items'] %}
+{% if ids %}
+<section data-section="{{ sec.key }}">
+  <h2>{{ sec.label }}</h2>
+  {% if sec.key == 'certifications' %}
+    {% for id in ids %}{% set i = x['items'][id] %}
+    <div class="oneline"><span class="b">{{ m.title(id, i) }}</span>{% if i.details.score %}: {{ i.details.score }}{% endif %}{% if i.details.issuer or i.organization %}, {{ i.details.issuer or i.organization }}{% endif %}{% if i.period[0] or i.period[1] %} ({{ (i.period[0] or i.period[1])[:4] }}){% endif %}</div>
+    {% endfor %}
+  {% else %}
+  {% for id in ids %}{% set i = x['items'][id] %}
+  <div class="entry">
+    {% if sec.key == 'education' %}
+      <div class="row"><span class="b">{{ m.title(id, i) }}</span><span class="r">{{ m.en_period(i.period, i.is_ongoing) }}</span></div>
+      {% set deg = [i.details.degree, i.details.major] | select | join(' in ') %}
+      {% if deg or i.details.gpa %}<div class="row"><span class="i">{{ deg }}</span><span class="r i">{% if i.details.gpa %}GPA: {{ i.details.gpa }}{% endif %}</span></div>{% endif %}
+    {% elif sec.key == 'projects' %}
+      <div class="row"><span><span class="b">{{ m.title(id, i) }}</span>{% if i.skills %} | <span class="i">{{ i.skills[:5] | join(', ') }}</span>{% endif %}</span><span class="r">{{ m.en_period(i.period, i.is_ongoing) }}</span></div>
+    {% else %}
+      {% set has_org = i.organization and i.organization != i.title %}
+      <div class="row"><span class="b">{% if has_org %}{{ i.organization }}{% else %}{{ m.title(id, i) }}{% endif %}</span><span class="r">{{ m.en_period(i.period, i.is_ongoing) }}</span></div>
+      {% if has_org %}<div class="i">{{ m.title(id, i) }}{% if i.role and i.role != i.title %}, {{ i.role }}{% endif %}</div>
+      {% elif i.role %}<div class="i">{{ i.role }}</div>{% endif %}
+    {% endif %}
+    {{ m.lines(id, i) }}
+  </div>
+  {% endfor %}
+  {% endif %}
 </section>
-{% endfor %}
-{% if c.skills %}<section data-section="skills"><h2>Skills</h2>
-  <div>{{ c.skills[0].keywords | join(', ') }}</div>
-</section>{% endif %}
+{% endif %}{% endfor %}
+
+{% set skills = m.skills_all(x) | trim %}
+{% if skills %}
+<section data-section="skills">
+  <h2>Skills</h2>
+  <div class="oneline"><span class="b">Technical:</span> {{ skills }}</div>
+</section>
+{% endif %}
 {% endblock %}

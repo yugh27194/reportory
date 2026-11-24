@@ -1,41 +1,82 @@
 {% extends "base.html.j2" %}
 {% import "_macros.html.j2" as m %}
+{# 표지 → 목차 → 프로젝트별 사례 연구(배경 → 역할·팀 → 방법·도구 → 결과 → 링크) #}
+{% block page_margin %}14mm 15mm 14mm 15mm{% endblock %}
 {% block style %}
-.cover { height: 250mm; display: flex; flex-direction: column; justify-content: flex-end;
-  background: var(--ink); color: #fff; padding: 22mm 18mm; border-radius: 4mm; }
-.cover h1 { font-size: 32pt; }
-.cover .accent { width: 28mm; height: 2.5mm; background: var(--accent); margin-bottom: 8mm; }
-.cover .sub { color: var(--mint); margin-top: 4mm; font-size: 12pt; }
+.page { break-after: page; }
+.cover { height: 262mm; display: flex; flex-direction: column; justify-content: space-between; background: var(--ink); color: #fff; padding: 20mm 18mm; border-radius: 4mm; }
+.cover .top { font-size: 10pt; letter-spacing: 0.25em; color: var(--accent); }
+.cover h1 { font-size: 38pt; line-height: 1.05; margin: 0 0 6mm; }
+.cover .bar { width: 26mm; height: 2.4mm; background: var(--accent); margin-bottom: 7mm; }
+.cover .who { font-size: 15pt; font-weight: 600; }
+.cover .sub { color: var(--mint); margin-top: 2mm; }
+.toc h2 { font-size: 20pt; margin: 4mm 0 8mm; }
+.toc ol { list-style: none; padding: 0; margin: 0; }
+.toc li { display: grid; grid-template-columns: 14mm 1fr auto; align-items: baseline; padding: 4mm 0; border-bottom: 0.6pt solid var(--line); }
+.toc .n { font-size: 16pt; font-weight: 700; color: var(--accent); }
+.toc .t { font-size: 13pt; font-weight: 600; }
+.toc .meta { color: var(--muted); font-size: 9pt; }
 .project { break-before: page; }
-.project h2 { font-size: 18pt; text-transform: none; letter-spacing: -0.01em; color: var(--ink);
-  border-bottom: 2pt solid var(--accent); }
-.meta { display: grid; grid-template-columns: 22mm 1fr; gap: 3pt 8pt; margin: 6pt 0 10pt; }
-.meta dt { color: var(--muted); }
-.meta dd { margin: 0; }
-.lines li { margin: 4pt 0; }
-.metrics { display: flex; gap: 8pt; margin-top: 8pt; }
-.metric { background: var(--cream); border-radius: 3mm; padding: 6pt 10pt; }
-.metric b { display: block; font-size: 15pt; color: var(--deep); }
+.project .head { display: flex; gap: 6mm; align-items: flex-end; border-bottom: 2pt solid var(--accent); padding-bottom: 4mm; margin-bottom: 5mm; }
+.project .num { font-size: 34pt; font-weight: 800; color: var(--mint); -webkit-text-stroke: 1pt var(--deep); line-height: 1; }
+.project h2 { font-size: 20pt; margin: 0; line-height: 1.2; }
+.project .period { color: var(--muted); }
+.meta { display: grid; grid-template-columns: 1fr 1fr; gap: 3mm; margin-bottom: 6mm; }
+.meta div { background: var(--cream); border-radius: 2.5mm; padding: 3mm 4mm; }
+.meta dt { font-size: 8.5pt; color: var(--muted); margin-bottom: 1mm; }
+.meta dd { margin: 0; font-weight: 600; }
+.chip { display: inline-block; background: var(--mint); color: var(--deep); border-radius: 6pt; padding: 0 5pt; margin: 0 2pt 2pt 0; font-size: 8.5pt; font-weight: 600; }
+.case { display: grid; grid-template-columns: 22mm 1fr; gap: 3mm 5mm; }
+.case .k { font-weight: 700; color: var(--deep); }
+.case .k::after { content: ""; display: block; width: 8mm; height: 1.2pt; background: var(--accent); margin-top: 1.5mm; }
+ul.lines { padding-left: 13pt; }
+ul.lines li { margin: 2pt 0; }
+.metrics { display: flex; gap: 4mm; margin-top: 6mm; }
+.metric { border: 1pt solid var(--accent); border-radius: 3mm; padding: 3mm 5mm; }
+.metric b { display: block; font-size: 17pt; color: var(--deep); }
 {% endblock %}
 {% block body %}
-<div class="cover">
-  <div class="accent"></div>
-  <div>Project Portfolio</div>
-  <h1>{{ c.basics.name or '' }}</h1>
-  <div class="sub">{{ c.basics.label or '' }}</div>
-  <div class="sub">프로젝트 {{ x.sections[0]['items'] | length }}개</div>
+{% set P = x.profile %}
+{% set ids = x.sections[0]['items'] %}
+<div class="page"><div class="cover">
+  <div class="top">PROJECT PORTFOLIO</div>
+  <div>
+    <div class="bar"></div>
+    <h1>{{ P.headline or '프로젝트 포트폴리오' }}</h1>
+    <div class="who">{{ P.name }}</div>
+    <div class="sub">{{ [P.school, P.major] | select | join(' · ') }}</div>
+    <div class="sub">{{ P.email }}</div>
+  </div>
+</div></div>
+
+<div class="page toc">
+  <h2>목차</h2>
+  <ol>{% for id in ids %}{% set i = x['items'][id] %}
+    <li><span class="n">{{ '%02d' % loop.index }}</span><span><span class="t">{{ i.title }}</span><br><span class="meta">{{ [i.role, (i.skills[:4] | join(', '))] | select | join(' · ') }}</span></span><span class="meta">{{ m.period(i.period, i.is_ongoing) }}</span></li>
+  {% endfor %}</ol>
 </div>
-{% for id in x.sections[0]['items'] %}{% set i = x['items'][id] %}
+
+{% for id in ids %}{% set i = x['items'][id] %}
 <section class="project" data-section="project-{{ loop.index }}">
-  <h2>{{ i.title }}</h2>
+  <div class="head">
+    <div class="num">{{ '%02d' % loop.index }}</div>
+    <div><h2>{{ m.title(id, i) }}</h2><div class="period">{{ m.period(i.period, i.is_ongoing) or '' }}{% if i.organization %} · {{ i.organization }}{% endif %}</div></div>
+  </div>
   <dl class="meta">
-    <dt>기간</dt><dd>{{ m.period(i.period, i.is_ongoing) or '-' }}</dd>
-    {% if i.role or i.details.team_size %}<dt>역할·팀</dt><dd>{{ [i.role, (i.details.team_size ~ '명 팀') if i.details.team_size else None] | select | join(' · ') }}</dd>{% endif %}
-    {% if i.skills %}<dt>도구</dt><dd><div class="chips">{% for s in i.skills %}<span class="chip">{{ s }}</span>{% endfor %}</div></dd>{% endif %}
-    {% if i.details.repo_url %}<dt>저장소</dt><dd><a href="{{ i.details.repo_url }}">{{ i.details.repo_url }}</a></dd>{% endif %}
-    {% if i.details.demo_url %}<dt>데모</dt><dd><a href="{{ i.details.demo_url }}">{{ i.details.demo_url }}</a></dd>{% endif %}
+    <div><dt>역할·팀</dt><dd>{{ [i.role, (i.details.team_size ~ '명 팀') if i.details.team_size else None] | select | join(' · ') or '-' }}</dd></div>
+    <div><dt>도구</dt><dd>{% for s in i.skills %}<span class="chip">{{ s }}</span>{% else %}-{% endfor %}</dd></div>
+    {% if i.details.repo_url %}<div><dt>저장소</dt><dd>{{ i.details.repo_url | replace('https://', '') }}</dd></div>{% endif %}
+    {% if i.details.demo_url %}<div><dt>데모</dt><dd>{{ i.details.demo_url | replace('https://', '') }}</dd></div>{% endif %}
   </dl>
-  {% if i.lines %}<ul class="lines">{% for l in i.lines %}<li>{{ l }}</li>{% endfor %}</ul>{% endif %}
+  {# 문장은 '배경: ', '역할: ', '방법: ', '결과: ' 머리말로 나눈다. 머리말이 없으면 목록으로 둔다. 편집용 목록은 그대로 둔다. #}
+  {% set labeled = [] %}{% for l in i.lines %}{% if l[:3] in ['배경:', '역할:', '방법:', '결과:'] %}{% set _ = labeled.append(l) %}{% endif %}{% endfor %}
+  {% if labeled | length == i.lines | length and labeled %}
+  <div class="case" data-lines="{{ id }}">
+    {% for l in i.lines %}<div class="k">{{ l[:2] }}</div><div data-edit="line" data-item="{{ id }}" data-prefix="{{ l[:3] }} ">{{ l[3:] | trim }}</div>{% endfor %}
+  </div>
+  {% else %}
+  {{ m.lines(id, i) }}
+  {% endif %}
   {% if i.metrics %}<div class="metrics">{% for mt in i.metrics %}<div class="metric"><b>{{ mt.value }}{{ mt.unit or '' }}</b>{{ mt.name }}</div>{% endfor %}</div>{% endif %}
 </section>
 {% endfor %}

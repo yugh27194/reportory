@@ -2,12 +2,31 @@
 
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
+    @classmethod
+    def settings_customise_sources(
+        cls, settings_cls, init_settings, env_settings, dotenv_settings, file_secret_settings
+    ):
+        # 로컬에서는 api/.env가 시스템 환경 변수보다 앞선다. 다른 도구가 넣어 둔 예전
+        # ANTHROPIC_API_KEY 같은 시스템 값이 .env의 새 키를 덮어쓰지 않게 한다.
+        # (.env가 없는 배포 환경에서는 그대로 환경 변수를 쓴다.)
+        return init_settings, dotenv_settings, env_settings, file_secret_settings
+
+    @field_validator(
+        "anthropic_api_key", "openai_api_key", "supabase_service_role_key", mode="before"
+    )
+    @classmethod
+    def _clean_secret(cls, v):
+        # 붙여 넣을 때 따라 들어온 공백·따옴표·줄바꿈을 지운다.
+        if isinstance(v, str):
+            return v.strip().strip("\"'").strip()
+        return v
 
     database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:54322/postgres"
 

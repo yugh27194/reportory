@@ -11,7 +11,7 @@ from app.config import Settings, get_settings
 from app.db import UserDB, as_json, get_user_db
 from app.errors import ApiError, not_found, validation_error
 from app.routers.me import ensure_profile
-from app.services.documents import FORMAT_LABELS, item_types_for, rank_items
+from app.services.documents import FORMAT_LABELS, apply_edits, item_types_for, rank_items
 from app.services.jobs import check_daily_limit, enqueue
 from app.services.render import render_html
 from app.services.similarity import safe_embed
@@ -238,3 +238,52 @@ async def version_pdf(
         "documents", row["pdf_path"], ttl, download_name=f"{doc['title']}_v{version}.pdf"
     )
     return {"url": url, "expires_in": ttl}
+
+
+class ItemEditIn(BaseModel):
+    title: str | None = Field(default=None, max_length=200)
+    lines: list[str] | None = Field(default=None, max_length=40)
+
+
+class EditsIn(BaseModel):
+    items: dict[UUID, ItemEditIn] = {}
+    summary: str | None = Field(default=None, max_length=300)
+
+
+@router.post("/documents/{document_id}/versions/{version}/edits", status_code=202)
+async def save_edits(
+    document_id: UUID, version: int, body: EditsIn, db: UserDB = Depends(get_user_db)
+):
+    """미리보기에서 고친 내용으로 새 버전을 만들고 PDF를 다시 그린다."""
+    await _doc(db, document_id)
+    src = await _version(db, document_id, version)
+    if not src["content"]:
+        raise not_found("아직 만들어지지 않은 버전이다.")
+    content = apply_edits(
+        src["content"],
+        {str(k): v.model_dump(exclude_none=True) for k, v in body.items.items()},
+        body.summary,
+    )
+    next_version = await db.scalar(
+        """select coalesce(max(version), 0) + 1 from document_versions
+           where document_id = :id and user_id = :user_id""",
+        id=document_id,
+    )
+    row = await db.one(
+        f"""insert into document_versions (document_id, user_id, version, selected_item_ids,
+              options, content)
+            values (:doc, :user_id, :version, :ids, cast(:options as jsonb),
+              cast(:content as jsonb))
+            returning {VERSION_COLUMNS}""",
+        doc=document_id,
+        version=next_version,
+        ids=src["selected_item_ids"],
+        options=as_json({"edited_from": version}),
+        content=as_json(content),
+    )
+    await db.execute(
+        "update documents set updated_at = now() where id = :id and user_id = :user_id",
+        id=document_id,
+    )
+    job_id = await enqueue(db, "render_document", {"version_id": str(row["id"])})
+    return {"version": row, "job_id": job_id}

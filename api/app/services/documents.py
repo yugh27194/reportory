@@ -9,38 +9,45 @@ from app.db import UserDB
 from app.llm.schemas import DocSection
 from app.llm.validators import numbers_supported
 
-# 형식별 섹션: (키, 국문 제목, 영문 제목, 항목 유형)
+# 형식별 섹션: (키, 국문 제목, 영문 제목, 항목 유형). 참고 양식:
+# - resume_ko: 고용노동부 직무능력 중심(NCS) 입사지원서 - 인적·교육·자격·어학·경력·경험·수상·직무 관련 기술
+# - resume_en: Harvard 커리어센터 bullet 양식 + Jake's Resume - Education 먼저, 역연대순, 1쪽
+# - academic_cv: 대학 CV 가이드 공통 구성 - 연구 관심·학력·논문·연구 경험·수상·기타·추천인
+# - project_portfolio: 표지·목차·프로젝트별 사례 연구(배경→역할·팀→방법·도구→결과)
 SECTIONS: dict[str, list[tuple[str, str, str, tuple[str, ...]]]] = {
     "academic_cv": [
         ("education", "학력", "Education", ("education",)),
-        ("research", "연구 경험", "Research Experience", ("experience",)),
-        ("publications", "논문·발표", "Publications", ("publication",)),
-        ("awards", "수상·장학", "Awards & Scholarships", ("award",)),
-        ("projects", "프로젝트", "Projects", ("project",)),
-        ("activities", "활동", "Activities", ("activity",)),
-        ("certifications", "자격증", "Certifications", ("certification",)),
+        ("publications", "논문 및 발표", "Publications & Presentations", ("publication",)),
+        ("research", "연구 및 실무 경험", "Research & Professional Experience", ("experience",)),
+        ("awards", "수상 및 장학", "Honors & Awards", ("award",)),
+        ("projects", "프로젝트", "Selected Projects", ("project",)),
+        ("activities", "학술·대외 활동", "Service & Activities", ("activity",)),
+        ("certifications", "자격", "Certifications", ("certification",)),
         ("languages", "어학", "Languages", ("language_test",)),
     ],
     "resume_en": [
         ("education", "학력", "Education", ("education",)),
         ("experience", "경력", "Experience", ("experience",)),
-        ("projects", "프로젝트", "Projects", ("project", "activity")),
-        ("awards", "수상", "Awards", ("award",)),
-        ("certifications", "자격증", "Certifications", ("certification", "language_test")),
+        ("projects", "프로젝트", "Projects", ("project",)),
+        ("leadership", "활동", "Leadership & Activities", ("activity",)),
+        ("awards", "수상", "Honors & Awards", ("award",)),
+        ("certifications", "자격", "Certifications", ("certification", "language_test")),
     ],
     "resume_ko": [
-        ("education", "학력", "Education", ("education",)),
-        ("experience", "경력", "Experience", ("experience",)),
-        ("certifications", "자격증", "Certifications", ("certification",)),
-        ("languages", "어학", "Languages", ("language_test",)),
-        ("awards", "수상", "Awards", ("award",)),
-        ("activities", "대외활동", "Activities", ("activity",)),
-        ("projects", "프로젝트", "Projects", ("project",)),
+        ("education", "교육사항", "Education", ("education",)),
+        ("certifications", "자격사항", "Certifications", ("certification",)),
+        ("languages", "어학사항", "Languages", ("language_test",)),
+        ("experience", "경력사항", "Work Experience", ("experience",)),
+        ("activities", "경험사항", "Experience", ("project", "activity")),
+        ("awards", "수상사항", "Awards", ("award",)),
     ],
     "project_portfolio": [
         ("projects", "프로젝트", "Projects", ("project", "activity", "experience")),
     ],
 }
+
+# 문서 안에서 날짜 역순(최근 먼저)으로 정렬하는 형식. 포트폴리오는 사용자가 고른 순서를 지킨다.
+REVERSE_CHRONOLOGICAL = {"academic_cv", "resume_en", "resume_ko"}
 
 FORMAT_LABELS = {
     "academic_cv": "Academic CV",
@@ -86,14 +93,29 @@ DEFAULT_PICK = {"academic_cv": 30, "resume_en": 8, "resume_ko": 30, "project_por
 RESUME_EN_MAX_BULLETS = 4
 
 FORMAT_RULES = {
-    "academic_cv": "대학원·연구실 지원용 Academic CV다. 연구 경험을 앞세우고, 항목마다 한 일과 결과를 "
-    "한국어 서술체 1~3문장으로 쓴다.",
-    "resume_en": "Write in English. Each item has at most 4 bullet lines. Every bullet starts "
-    "with a past-tense action verb (Built, Led, Designed...). Keep each bullet under 25 words.",
-    "resume_ko": "국내 기업·공공기관 지원용 국문 이력서다. 항목마다 한 일과 결과를 한국어 서술체 "
-    "1~2문장으로 짧게 쓴다.",
-    "project_portfolio": "개발·데이터 직무용 프로젝트 포트폴리오다. 프로젝트마다 배경, 내 역할·팀 구성, "
-    "방법·도구, 결과를 한 줄씩 한국어 서술체로 쓴다. 근거에 없는 줄은 쓰지 않는다.",
+    "academic_cv": (
+        "대학원·연구실 지원용 Academic CV다. 항목마다 한 일과 결과를 1~2줄로 쓴다. "
+        "연구 경험은 연구 주제, 방법, 맡은 역할, 결과(논문·발표·코드) 순서로 쓴다. "
+        "문장은 한국어 서술체로 끝맺는다."
+    ),
+    "resume_en": (
+        "Harvard-style one-page resume. Write in English. Each item has at most 4 bullet lines, "
+        "one sentence each, under 22 words. Start every bullet with a strong past-tense action verb "
+        "(Built, Led, Designed, Analyzed, Improved) - present tense only for ongoing roles. "
+        "Use the pattern: action + what you did + tool/method + result. Quantify only with numbers "
+        "that appear in the item data. No personal pronouns, no articles at the start, no periods "
+        "needed at the end."
+    ),
+    "resume_ko": (
+        "국내 기업·공공기관 입사지원서(NCS 직무능력 중심 양식)의 경력·경험사항 '담당 업무·활동 내용' 칸에 "
+        "들어갈 문장이다. 항목마다 1~2줄로, '무엇을 위해 어떤 역할로 무엇을 했고 결과가 어땠는지'를 "
+        "짧은 서술체 문장으로 쓴다. 학교 이름, 성별, 나이처럼 블라인드 채용에서 쓰지 않는 정보는 넣지 않는다."
+    ),
+    "project_portfolio": (
+        "개발·데이터 직무용 프로젝트 포트폴리오의 사례 연구다. 프로젝트마다 다음 머리말로 시작하는 줄을 "
+        "근거가 있는 것만 순서대로 쓴다: '배경: ', '역할: ', '방법: ', '결과: '. 머리말 뒤 내용은 한국어 "
+        "서술체 1~2문장이다. 근거가 없는 머리말 줄은 쓰지 않는다."
+    ),
 }
 
 
@@ -349,15 +371,33 @@ def build_content(fmt: str, profile: dict, items: list[dict], lines: dict[str, d
             skills.setdefault(s, None)
     if skills:
         content["skills"] = [{"name": "Skills" if en else "기술", "keywords": list(skills)}]
+
+    def sort_key(i: dict) -> tuple:
+        # 진행 중이 가장 앞, 그다음 끝난 날짜(없으면 시작 날짜)가 늦은 순서.
+        d = i.get("end_date") or i.get("start_date")
+        return (0 if i.get("is_ongoing") else 1, -(d.toordinal() if d else 0))
+
+    def in_section(types: tuple[str, ...]) -> list[str]:
+        chosen = [i for i in items if i["type"] in types]
+        if fmt in REVERSE_CHRONOLOGICAL:
+            chosen = sorted(chosen, key=sort_key)
+        return [str(i["id"]) for i in chosen]
+
     content["x-reportory"] = {
         "format": fmt,
         "language": "en" if en else "ko",
+        "written_on": date.today().isoformat(),
+        "profile": {
+            "name": profile.get("display_name") or "",
+            "name_en": profile.get("display_name_en") or "",
+            "headline": profile.get("headline") or "",
+            "email": profile.get("email_public") or "",
+            "links": profile.get("links") or [],
+            "school": profile.get("school") or "",
+            "major": profile.get("major") or "",
+        },
         "sections": [
-            {
-                "key": k,
-                "label": en_label if en else ko_label,
-                "items": [str(i["id"]) for i in items if i["type"] in types],
-            }
+            {"key": k, "label": en_label if en else ko_label, "items": in_section(types)}
             for k, ko_label, en_label, types in SECTIONS[fmt]
         ],
         "items": {
@@ -371,6 +411,7 @@ def build_content(fmt: str, profile: dict, items: list[dict], lines: dict[str, d
                 "skills": i.get("skills", []),
                 "metrics": i.get("metrics", []),
                 "details": i.get("details") or {},
+                "links": i.get("links") or [],
                 "heading": lines.get(str(i["id"]), {}).get("heading"),
                 "lines": hl(i),
             }
@@ -412,4 +453,64 @@ async def load_items(db: UserDB, ids: list[UUID]) -> list[dict]:
             )
         ]
         out.append(r)
+    return out
+
+
+# ===== 문서 위에서 바로 고치기 =====
+# JSON Resume 배열에서 항목 제목이 들어가는 필드(편집한 제목을 함께 바꾼다)
+_TITLE_FIELD = {
+    "education": "institution",
+    "awards": "title",
+    "certificates": "name",
+    "projects": "name",
+    "publications": "name",
+    "volunteer": "x-title",
+    "languages": "language",
+}
+_LINES_FIELD = {
+    "work": "highlights",
+    "education": "courses",
+    "projects": "highlights",
+    "volunteer": "highlights",
+}
+_TEXT_FIELD = {"awards": "summary", "publications": "summary"}
+MAX_LINES_PER_ITEM = 12
+
+
+def apply_edits(content: dict, items: dict[str, dict], summary: str | None) -> dict:
+    """사용자가 미리보기에서 고친 제목·문장·요약을 내용에 반영한 사본을 돌려준다.
+
+    사용자가 직접 쓴 값이므로 숫자 대조는 하지 않는다(docs/decisions.md '수정 후 승인' A안과 같다).
+    """
+    import copy
+
+    out = copy.deepcopy(content)
+    x = out["x-reportory"]
+    for item_id, edit in items.items():
+        cur = x["items"].get(item_id)
+        if cur is None:
+            continue
+        if edit.get("title") is not None and edit["title"].strip():
+            cur["title"] = edit["title"].strip()[:200]
+        if edit.get("lines") is not None:
+            lines = [ln.strip() for raw in edit["lines"] for ln in str(raw).split("\n")]
+            cur["lines"] = [ln for ln in lines if ln][:MAX_LINES_PER_ITEM]
+        for key, entries in out.items():
+            if not isinstance(entries, list):
+                continue
+            for e in entries:
+                if not isinstance(e, dict) or e.get("x-itemId") != item_id:
+                    continue
+                if key in _TITLE_FIELD and edit.get("title"):
+                    e[_TITLE_FIELD[key]] = cur["title"]
+                if key in _LINES_FIELD:
+                    e[_LINES_FIELD[key]] = cur["lines"]
+                if key in _TEXT_FIELD:
+                    e[_TEXT_FIELD[key]] = " ".join(cur["lines"])
+    if summary is not None:
+        text = summary.strip()[:300]
+        if x["format"] == "resume_en":
+            out["x-summary"] = text
+        else:
+            x["profile"]["headline"] = text
     return out

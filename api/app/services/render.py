@@ -13,10 +13,17 @@ from app.config import get_settings
 log = logging.getLogger("reportory.render")
 
 TEMPLATE_DIR = Path(__file__).resolve().parents[1] / "templates"
+# (파일, 글꼴 이름, 굵기, 기울임). Pretendard는 한글, Source Serif 4는 영문 Resume·CV의 라틴 문자용(둘 다 OFL).
 FONT_FACES = [
-    ("Pretendard-Regular.woff2", 400),
-    ("Pretendard-SemiBold.woff2", 600),
-    ("Pretendard-Bold.woff2", 700),
+    ("Pretendard-Regular.woff2", "Pretendard", 400, "normal"),
+    ("Pretendard-SemiBold.woff2", "Pretendard", 600, "normal"),
+    ("Pretendard-Bold.woff2", "Pretendard", 700, "normal"),
+]
+SERIF_FACES = [
+    ("SourceSerif4-Regular.woff2", "Source Serif 4", 400, "normal"),
+    ("SourceSerif4-Italic.woff2", "Source Serif 4", 400, "italic"),
+    ("SourceSerif4-SemiBold.woff2", "Source Serif 4", 600, "normal"),
+    ("SourceSerif4-Bold.woff2", "Source Serif 4", 700, "normal"),
 ]
 
 
@@ -34,17 +41,27 @@ def _env() -> Environment:
     )
 
 
-@lru_cache
-def embedded_fonts_css() -> str:
-    """PDF에는 한글 폰트(Pretendard, OFL)를 데이터 URI로 넣어 어느 서버에서도 글자가 깨지지 않게 한다."""
+def _faces_css(faces) -> str:
     rules = []
-    for file, weight in FONT_FACES:
+    for file, family, weight, style in faces:
         data = base64.b64encode((TEMPLATE_DIR / "fonts" / file).read_bytes()).decode()
         rules.append(
-            f"@font-face {{ font-family: 'Pretendard'; font-weight: {weight}; "
+            f"@font-face {{ font-family: '{family}'; font-weight: {weight}; font-style: {style}; "
             f"src: url(data:font/woff2;base64,{data}) format('woff2'); }}"
         )
     return "\n".join(rules)
+
+
+@lru_cache
+def embedded_fonts_css() -> str:
+    """PDF에는 글꼴을 데이터 URI로 넣어 어느 서버에서도 글자가 깨지지 않게 한다."""
+    return _faces_css(FONT_FACES + SERIF_FACES)
+
+
+@lru_cache
+def preview_fonts_css() -> str:
+    """미리보기에는 작은 영문 세리프만 넣는다(한글은 사용자 기기 글꼴로 대신 보인다)."""
+    return _faces_css(SERIF_FACES)
 
 
 def render_html(fmt: str, content: dict, *, title: str, for_pdf: bool) -> str:
@@ -57,7 +74,8 @@ def render_html(fmt: str, content: dict, *, title: str, for_pdf: bool) -> str:
             x=x,
             title=title,
             summary=content.get("x-summary"),
-            fonts_css=embedded_fonts_css() if for_pdf else "",
+            fonts_css=embedded_fonts_css() if for_pdf else preview_fonts_css(),
+            editable=not for_pdf,
         )
     )
 

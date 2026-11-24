@@ -1,26 +1,28 @@
-{% macro period(p, ongoing, en=false) -%}
+{# 편집 표식: data-edit(line·title·summary)과 data-item. 미리보기에서만 고칠 수 있게 쓰인다. #}
+{% macro period(p, ongoing, en=false, sep=' – ') -%}
 {%- set s = p[0][:7] | replace('-', '.') if p[0] else '' -%}
 {%- set e = (('Present' if en else '현재') if ongoing else (p[1][:7] | replace('-', '.') if p[1] else '')) -%}
+{%- if s and e and s != e %}{{ s }}{{ sep }}{{ e }}{% elif s %}{{ s }}{% else %}{{ e }}{% endif -%}
+{%- endmacro %}
+
+{% macro en_month(d) -%}
+{{ ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][(d[5:7] | int) - 1] }} {{ d[:4] }}
+{%- endmacro %}
+
+{% macro en_period(p, ongoing) -%}
+{%- set s = en_month(p[0]) if p[0] else '' -%}
+{%- set e = 'Present' if ongoing else (en_month(p[1]) if p[1] else '') -%}
 {%- if s and e and s != e %}{{ s }} – {{ e }}{% elif s %}{{ s }}{% else %}{{ e }}{% endif -%}
 {%- endmacro %}
 
-{% macro entry(item, en=false) -%}
-<div class="entry">
-  {%- set org = item.organization if item.organization != item.title else None %}
-  {%- set sub = [org, item.role, (item.details.major ~ ' ' ~ (item.details.degree or '')) if item.details.major else None] | select | list %}
-  <div><span class="title">{{ item.title }}</span>{% if sub %}<span class="org"> · {{ sub | join(' · ') }}</span>{% endif %}</div>
-  <div class="date">{{ period(item.period, item.is_ongoing, en) }}</div>
-  {% if item.lines %}<ul>{% for l in item.lines %}<li>{{ l }}</li>{% endfor %}</ul>{% endif %}
-</div>
+{% macro title(id, item) -%}<span data-edit="title" data-item="{{ id }}">{{ item.title }}</span>{%- endmacro %}
+
+{% macro lines(id, item, cls='lines') -%}
+<ul class="{{ cls }}" data-lines="{{ id }}">{% for l in item.lines %}<li data-edit="line" data-item="{{ id }}">{{ l }}</li>{% endfor %}</ul>
 {%- endmacro %}
 
-{% macro header(c, x) -%}
-<header>
-  <h1>{{ c.basics.name or '이름' }}</h1>
-  {% if c.basics.label %}<div class="muted">{{ c.basics.label }}</div>{% endif %}
-  <div class="contact">
-    {% if c.basics.email %}<span>{{ c.basics.email }}</span>{% endif %}
-    {% for p in c.basics.profiles %}<span><a href="{{ p.url }}">{{ p.network }}</a></span>{% endfor %}
-  </div>
-</header>
+{% macro skills_all(x) -%}
+{%- set ns = namespace(out=[]) -%}
+{%- for id, it in x['items'].items() -%}{%- for s in it.skills -%}{%- if s not in ns.out -%}{%- set ns.out = ns.out + [s] -%}{%- endif -%}{%- endfor -%}{%- endfor -%}
+{{ ns.out | join(', ') }}
 {%- endmacro %}

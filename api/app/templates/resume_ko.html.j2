@@ -1,42 +1,81 @@
 {% extends "base.html.j2" %}
 {% import "_macros.html.j2" as m %}
+{# 고용노동부 직무능력 중심(NCS) 입사지원서 구조: 인적·교육·자격·어학·경력·경험·수상·직무 관련 기술 #}
+{% block page_margin %}14mm 14mm 16mm 14mm{% endblock %}
 {% block style %}
-h2 { text-transform: none; letter-spacing: 0; }
-td.lines div + div { margin-top: 2pt; }
+body { font-size: 9.5pt; }
+h1 { text-align: center; font-size: 20pt; letter-spacing: 0.5em; margin: 0 0 10pt; padding-left: 0.5em; }
+h2 { font-size: 10.5pt; margin: 12pt 0 4pt; padding-left: 6pt; border-left: 3pt solid var(--deep); color: var(--ink); }
+table.form th, table.form td { border: 0.6pt solid #9aa5ae; padding: 3.5pt 5pt; vertical-align: top; text-align: left; }
+table.form th { background: #f2f4f5; font-weight: 600; white-space: nowrap; text-align: center; }
+table.form td.c { text-align: center; white-space: nowrap; }
+table.form ul.lines { margin: 0; padding-left: 10pt; }
+.sign { margin-top: 18pt; text-align: center; line-height: 2; }
+.sign .who { text-align: right; margin-top: 6pt; }
+.empty td { color: #9aa5ae; text-align: center; }
 {% endblock %}
 {% block body %}
-<h1 style="text-align:center; letter-spacing: 0.3em">이 력 서</h1>
-<section data-section="basics"><h2>인적사항</h2>
-  <table><tr><th>성명</th><td>{{ c.basics.name }}</td><th>이메일</th><td>{{ c.basics.email }}</td></tr>
-  {% if c.basics.profiles %}<tr><th>링크</th><td colspan="3">{% for p in c.basics.profiles %}{{ p.network }}: {{ p.url }}{% if not loop.last %}<br>{% endif %}{% endfor %}</td></tr>{% endif %}
+{% set P = x.profile %}
+<h1>이력서</h1>
+
+<section data-section="basics">
+  <h2>인적사항</h2>
+  <table class="form">
+    <tr><th style="width:16%">성명(국문)</th><td style="width:34%">{{ P.name }}</td><th style="width:16%">성명(영문)</th><td>{{ P.name_en }}</td></tr>
+    <tr><th>이메일</th><td>{{ P.email }}</td><th>포트폴리오</th><td>{% for l in P.links %}{{ l.label }}: {{ l.url }}{% if not loop.last %}<br>{% endif %}{% endfor %}</td></tr>
   </table>
 </section>
-{% for sec in x.sections if sec['items'] %}
-<section data-section="{{ sec.key }}"><h2>{{ sec.label }}</h2>
-  {% if sec.key == 'certifications' %}
-  <table><tr><th>자격명</th><th>발급기관</th><th>취득일</th></tr>
-  {% for id in sec['items'] %}{% set i = x['items'][id] %}
-    <tr><td>{{ i.title }}</td><td>{{ i.details.issuer or i.organization or '' }}</td><td>{{ (i.period[0] or '') }}</td></tr>
-  {% endfor %}</table>
+
+{% for sec in x.sections %}{% set ids = sec['items'] %}
+{% if ids %}
+<section data-section="{{ sec.key }}">
+  <h2>{{ sec.label }}</h2>
+  <table class="form">
+  {% if sec.key == 'education' %}
+    <tr><th style="width:20%">기간</th><th>학교명</th><th style="width:22%">전공</th><th style="width:14%">학위·구분</th><th style="width:10%">학점</th></tr>
+    {% for id in ids %}{% set i = x['items'][id] %}
+    <tr><td class="c">{{ m.period(i.period, i.is_ongoing, sep=' ~ ') }}</td><td>{{ m.title(id, i) }}</td>
+      <td>{{ i.details.major or '' }}</td><td class="c">{{ i.details.degree or ('재학' if i.is_ongoing else '') }}</td><td class="c">{{ i.details.gpa or '' }}</td></tr>
+    {% endfor %}
+  {% elif sec.key == 'certifications' %}
+    <tr><th>자격증명</th><th style="width:30%">발급기관</th><th style="width:18%">취득일</th></tr>
+    {% for id in ids %}{% set i = x['items'][id] %}
+    <tr><td>{{ m.title(id, i) }}</td><td>{{ i.details.issuer or i.organization or '' }}</td><td class="c">{{ i.period[0] or i.period[1] or '' }}</td></tr>
+    {% endfor %}
   {% elif sec.key == 'languages' %}
-  <table><tr><th>시험</th><th>점수·등급</th><th>응시일</th><th>유효기간</th></tr>
-  {% for id in sec['items'] %}{% set i = x['items'][id] %}
-    <tr><td>{{ i.details.test or i.title }}</td><td>{{ i.details.score or i.details.level or '' }}</td><td>{{ i.details.test_date or '' }}</td><td>{{ i.details.valid_until or '' }}</td></tr>
-  {% endfor %}</table>
+    <tr><th>시험명</th><th style="width:18%">점수·등급</th><th style="width:18%">응시일</th><th style="width:18%">유효기간</th></tr>
+    {% for id in ids %}{% set i = x['items'][id] %}
+    <tr><td>{{ m.title(id, i) }}</td><td class="c">{{ i.details.score or i.details.level or '' }}</td><td class="c">{{ i.details.test_date or '' }}</td><td class="c">{{ i.details.valid_until or '' }}</td></tr>
+    {% endfor %}
   {% elif sec.key == 'awards' %}
-  <table><tr><th>수상명</th><th>순위</th><th>주최</th><th>일자</th></tr>
-  {% for id in sec['items'] %}{% set i = x['items'][id] %}
-    <tr><td>{{ i.title }}</td><td>{{ i.details.rank or '' }}</td><td>{{ i.details.host or i.organization or '' }}</td><td>{{ i.period[1] or i.period[0] or '' }}</td></tr>
-  {% endfor %}</table>
+    <tr><th>수상명</th><th style="width:14%">순위</th><th style="width:26%">수여기관</th><th style="width:16%">수상일</th></tr>
+    {% for id in ids %}{% set i = x['items'][id] %}
+    <tr><td>{{ m.title(id, i) }}{{ m.lines(id, i) }}</td><td class="c">{{ i.details.rank or '' }}</td><td>{{ i.details.host or i.organization or '' }}</td><td class="c">{{ i.period[1] or i.period[0] or '' }}</td></tr>
+    {% endfor %}
   {% else %}
-  <table><tr><th style="width:24%">기간</th><th style="width:26%">{{ '학교' if sec.key == 'education' else '이름·기관' }}</th><th>내용</th></tr>
-  {% for id in sec['items'] %}{% set i = x['items'][id] %}
-    <tr><td>{{ m.period(i.period, i.is_ongoing) }}</td>
-      <td>{{ i.title }}{% if i.organization and i.organization != i.title %}<br><span class="muted">{{ i.organization }}</span>{% endif %}{% if i.details.major %}<br><span class="muted">{{ i.details.major }} {{ i.details.degree or '' }}</span>{% endif %}</td>
-      <td class="lines">{% if i.role %}<div class="muted">{{ i.role }}</div>{% endif %}{% for l in i.lines %}<div>{{ l }}</div>{% endfor %}</td></tr>
-  {% endfor %}</table>
+    {% set is_work = sec.key == 'experience' %}
+    <tr><th style="width:20%">{{ '근무기간' if is_work else '활동기간' }}</th><th style="width:24%">{{ '기관명' if is_work else '소속 조직·활동명' }}</th><th style="width:14%">{{ '직위·역할' if is_work else '역할' }}</th><th>{{ '담당 업무' if is_work else '활동 내용' }}</th></tr>
+    {% for id in ids %}{% set i = x['items'][id] %}
+    <tr><td class="c">{{ m.period(i.period, i.is_ongoing, sep=' ~ ') }}</td>
+      <td>{% if i.organization and i.organization != i.title %}{{ i.organization }}<br><span class="muted">{{ m.title(id, i) }}</span>{% else %}{{ m.title(id, i) }}{% endif %}</td>
+      <td class="c">{{ i.role or '' }}</td><td>{{ m.lines(id, i) }}</td></tr>
+    {% endfor %}
   {% endif %}
+  </table>
 </section>
-{% endfor %}
-{% if c.skills %}<section data-section="skills"><h2>기술</h2><div>{{ c.skills[0].keywords | join(', ') }}</div></section>{% endif %}
+{% endif %}{% endfor %}
+
+{% set skills = m.skills_all(x) | trim %}
+{% if skills %}
+<section data-section="skills">
+  <h2>직무 관련 기술</h2>
+  <table class="form"><tr><th style="width:16%">보유 기술</th><td>{{ skills }}</td></tr></table>
+</section>
+{% endif %}
+
+<div class="sign">
+  위 기재 사항은 사실과 다름없음을 확인합니다.<br>
+  {{ x.written_on[:4] }}년 {{ x.written_on[5:7] | int }}월 {{ x.written_on[8:10] | int }}일
+  <div class="who">지원자 {{ P.name }} (인)</div>
+</div>
 {% endblock %}

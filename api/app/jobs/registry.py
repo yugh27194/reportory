@@ -13,6 +13,7 @@ from app.jobs import (
     imports,
     period_summary,
     process_evidence,
+    render_document,
 )
 
 Handler = Callable[[UserDB, dict], Awaitable[dict]]
@@ -43,6 +44,7 @@ HANDLERS: dict[str, JobSpec] = {
     "import_github": JobSpec(imports.run_github_job, imports.on_final_failure),
     "generate_document": JobSpec(generate_document.run, generate_document.on_final_failure),
     "period_summary": JobSpec(period_summary.run),
+    "render_document": JobSpec(render_document.run, render_document.on_final_failure),
     "export_data": JobSpec(account.export_data),
     "delete_account": JobSpec(account.delete_account),
 }

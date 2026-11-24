@@ -5,39 +5,25 @@
 <title>{{ title }}</title>
 <style>
 {{ fonts_css | safe }}
-@page { size: A4; margin: {{ page_margin | default('16mm 16mm 18mm 16mm') }}; }
+@page { size: A4; margin: {% block page_margin %}15mm 16mm 16mm 16mm{% endblock %}; }
 :root {
   --ink: #0E1B2A; --deep: #224B46; --accent: #4FD1C5; --mint: #D9FFF8; --cream: #FFF7E6;
-  --muted: #5b6673; --line: #d9dee3;
+  --muted: #4f5b66; --line: #cfd6dc; --rule: #0E1B2A;
+  --sans: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
+  --serif: "Source Serif 4", "Georgia", "Times New Roman", "Pretendard", "Malgun Gothic", serif;
 }
 * { box-sizing: border-box; }
 html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-body {
-  margin: 0; color: var(--ink); background: #fff;
-  font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
-  font-size: {{ base_size | default('10pt') }}; line-height: 1.5; word-break: keep-all;
-}
-.doc { max-width: 190mm; margin: 0 auto; }
-h1 { font-size: 22pt; margin: 0; letter-spacing: -0.02em; }
-h2 {
-  font-size: 10.5pt; color: var(--deep); text-transform: uppercase; letter-spacing: 0.06em;
-  margin: 14pt 0 6pt; padding-bottom: 3pt; border-bottom: 1.5pt solid var(--accent);
-}
+body { margin: 0; color: var(--ink); background: #fff; font-family: var(--sans); font-size: 10pt; line-height: 1.45; word-break: keep-all; }
+.doc { max-width: 178mm; margin: 0 auto; }
+a { color: inherit; text-decoration: none; }
+ul.lines { margin: 2pt 0 0; padding-left: 12pt; }
+ul.lines:empty { display: none; }
+ul.lines li { margin: 0.5pt 0; }
+table { width: 100%; border-collapse: collapse; }
 .muted { color: var(--muted); }
-.contact { margin-top: 3pt; color: var(--muted); font-size: 9pt; }
-.contact span + span::before { content: " · "; }
-.entry { display: grid; grid-template-columns: 1fr auto; column-gap: 10pt; margin: 0 0 7pt; break-inside: avoid; }
-.entry .title { font-weight: 600; }
-.entry .org { color: var(--muted); }
-.entry .date { color: var(--muted); font-size: 9pt; white-space: nowrap; text-align: right; }
-.entry ul { grid-column: 1 / -1; margin: 2pt 0 0; padding-left: 13pt; }
-.entry li { margin: 1pt 0; }
-.chips { display: flex; flex-wrap: wrap; gap: 3pt; }
-.chip { background: var(--mint); color: var(--deep); border-radius: 8pt; padding: 0.5pt 6pt; font-size: 8.5pt; }
-table { width: 100%; border-collapse: collapse; font-size: 9pt; }
-th, td { border: 0.6pt solid var(--line); padding: 3pt 5pt; text-align: left; vertical-align: top; }
-th { background: var(--cream); font-weight: 600; white-space: nowrap; }
-a { color: var(--deep); text-decoration: none; }
+/* 미리보기 화면 여백(PDF에는 @page 여백이 쓰인다) */
+@media screen { body { padding: 14mm 0; } }
 {% block style %}{% endblock %}
 </style>
 </head>

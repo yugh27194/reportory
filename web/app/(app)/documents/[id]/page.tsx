@@ -1,10 +1,11 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, ArrowLeft, Copy, Download, Globe, Lock, RefreshCw, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Check, Copy, Download, Globe, Lock, PencilLine, RefreshCw, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { DocFrame, type DocFrameHandle } from "@/components/DocFrame";
 import { DocFormatIcon } from "@/components/DocFormatIcon";
 import { ErrorText } from "@/components/ErrorText";
 import { Spinner, StatusDot } from "@/components/ui";
@@ -64,6 +65,9 @@ export default function DocumentDetailPage() {
       q.state.data?.versions.some((v) => v.status === "queued" || v.status === "running") ? 2500 : false,
   });
   const [picked, setPicked] = useState<number | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const frameRef = useRef<DocFrameHandle>(null);
   const versions = doc.data?.versions ?? [];
   const current = picked ?? versions[0]?.version ?? null;
   const ver = useQuery({
@@ -76,6 +80,15 @@ export default function DocumentDetailPage() {
   const pdf = useMutation({
     mutationFn: () => api<{ url: string }>(`/documents/${id}/versions/${current}/pdf`),
     onSuccess: (r) => window.open(r.url, "_blank", "noopener"),
+  });
+  const saveEdits = useMutation({
+    mutationFn: () => post(`/documents/${id}/versions/${current}/edits`, frameRef.current?.collect() ?? { items: {} }),
+    onSuccess: () => {
+      setEditing(false);
+      setDirty(false);
+      setPicked(null);
+      refresh();
+    },
   });
   const regenerate = useMutation({
     mutationFn: () =>
@@ -117,6 +130,16 @@ export default function DocumentDetailPage() {
           {d.target_description && <p className="mt-1 line-clamp-2 max-w-2xl text-sm text-muted">{d.target_description}</p>}
         </div>
         <div className="flex flex-wrap gap-2">
+          <button
+            className="btn"
+            disabled={!ver.data?.html || editing}
+            onClick={() => {
+              setEditing(true);
+              setDirty(false);
+            }}
+          >
+            <PencilLine size={14} /> 바로 고치기
+          </button>
           <button className="btn btn-primary" disabled={!meta?.has_pdf || pdf.isPending} onClick={() => pdf.mutate()}>
             <Download size={16} /> PDF
           </button>
@@ -178,14 +201,22 @@ export default function DocumentDetailPage() {
             </div>
           )}
           {meta?.status === "failed" && <p className="text-sm text-red-700">이 버전을 만들지 못했다. 다시 만들기를 눌러 보세요.</p>}
+          {editing && (
+            <div className="sticky top-16 z-10 flex flex-wrap items-center gap-3 rounded-2xl bg-ink px-4 py-3 text-sm text-white shadow-lift">
+              <PencilLine size={16} className="text-accent" />
+              <span className="mr-auto">제목과 문장에 커서를 올리고 눌러 바로 고친다. Enter로 줄을 나누고, 줄을 비우면 지워진다.</span>
+              <button className="btn btn-sm border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white" onClick={() => setEditing(false)}>
+                <X size={14} /> 취소
+              </button>
+              <button className="btn btn-accent btn-sm" disabled={!dirty || saveEdits.isPending} onClick={() => saveEdits.mutate()}>
+                <Check size={14} /> {saveEdits.isPending ? "저장하는 중이다" : "새 버전으로 저장"}
+              </button>
+            </div>
+          )}
+          <ErrorText error={saveEdits.error} />
           {ver.data?.html && (
-            <div className="overflow-hidden rounded-2xl bg-ink/5 p-3 ring-1 ring-line sm:p-6">
-              <iframe
-                title="문서 미리보기"
-                srcDoc={ver.data.html}
-                sandbox=""
-                className="mx-auto block h-[1123px] w-full max-w-[794px] rounded bg-white shadow-lift"
-              />
+            <div className={`overflow-hidden rounded-2xl p-3 ring-1 sm:p-6 ${editing ? "bg-accent/10 ring-accent" : "bg-ink/5 ring-line"}`}>
+              <DocFrame ref={frameRef} html={ver.data.html} editing={editing} onDirty={() => setDirty(true)} />
             </div>
           )}
         </section>

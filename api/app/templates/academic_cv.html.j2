@@ -1,18 +1,76 @@
 {% extends "base.html.j2" %}
 {% import "_macros.html.j2" as m %}
+{# 대학 CV 가이드 공통 구성: 연구 관심 → 학력 → 논문·발표 → 연구 경험 → 수상 → 기타 → 추천인. 왼쪽 날짜 열. #}
+{% block page_margin %}18mm 18mm 18mm 18mm{% endblock %}
+{% block style %}
+body { font-family: var(--serif); font-size: 10.3pt; line-height: 1.42; }
+header { border-bottom: 1.2pt solid var(--rule); padding-bottom: 6pt; margin-bottom: 4pt; display: flex; justify-content: space-between; align-items: flex-end; }
+header h1 { font-size: 20pt; margin: 0; font-weight: 700; }
+header .sub { font-size: 9.5pt; color: var(--muted); }
+header .kind { font-variant: small-caps; letter-spacing: 0.12em; color: var(--deep); font-size: 10pt; }
+.contact { font-size: 9.3pt; margin: 4pt 0 2pt; }
+.contact span + span::before { content: " · "; }
+h2 { font-size: 11pt; font-variant: small-caps; letter-spacing: 0.08em; color: var(--deep); margin: 12pt 0 4pt; font-weight: 700; }
+.cv { display: grid; grid-template-columns: 30mm 1fr; column-gap: 5mm; row-gap: 4pt; }
+.cv .when { color: var(--muted); font-size: 9.3pt; padding-top: 0.5pt; }
+.cv .what { break-inside: avoid; }
+.b { font-weight: 700; }
+.i { font-style: italic; }
+ol.pubs { margin: 0; padding-left: 16pt; }
+ol.pubs li { margin-bottom: 3pt; }
+.chips span + span::before { content: "; "; }
+{% endblock %}
 {% block body %}
-{{ m.header(c, x) }}
+{% set P = x.profile %}
+{% set ko = x.language == 'ko' %}
+<header>
+  <div>
+    <h1>{{ P.name or P.name_en }}</h1>
+    {% if P.headline %}<div class="sub" data-edit="summary">{{ P.headline }}</div>{% endif %}
+  </div>
+  <div class="kind">Curriculum Vitae</div>
+</header>
+<div class="contact">{% if P.email %}<span>{{ P.email }}</span>{% endif %}{% for l in P.links %}<span>{{ l.url | replace('https://', '') }}</span>{% endfor %}</div>
+
 {% if x.interests %}
-<section data-section="interests"><h2>연구 관심 분야</h2>
-  <div class="chips">{% for i in x.interests %}<span class="chip">{{ i }}</span>{% endfor %}</div>
+<section data-section="interests">
+  <h2>{{ '연구 관심 분야' if ko else 'Research Interests' }}</h2>
+  <div class="chips">{% for t in x.interests %}<span>{{ t }}</span>{% endfor %}</div>
 </section>
 {% endif %}
-{% for sec in x.sections if sec['items'] %}
-<section data-section="{{ sec.key }}"><h2>{{ sec.label }}</h2>
-  {% for id in sec['items'] %}{{ m.entry(x['items'][id]) }}{% endfor %}
+
+{% for sec in x.sections %}{% set ids = sec['items'] %}
+{% if ids %}
+<section data-section="{{ sec.key }}">
+  <h2>{{ sec.label }}</h2>
+  {% if sec.key == 'publications' %}
+  <ol class="pubs">
+    {% for id in ids %}{% set i = x['items'][id] %}
+    <li>{% if i.details.authors %}{{ i.details.authors }}. {% endif %}“{{ m.title(id, i) }}.” {% if i.details.venue %}<span class="i">{{ i.details.venue }}</span>{% endif %}{% if i.period[1] or i.period[0] %}, {{ (i.period[1] or i.period[0])[:4] }}{% endif %}.{% if i.details.status %} ({{ i.details.status }}){% endif %}{% if i.details.doi %} {{ i.details.doi }}{% endif %}
+      {{ m.lines(id, i) }}</li>
+    {% endfor %}
+  </ol>
+  {% else %}
+  <div class="cv">
+    {% for id in ids %}{% set i = x['items'][id] %}
+    <div class="when">{{ m.period(i.period, i.is_ongoing, en=not ko) }}</div>
+    <div class="what">
+      <span class="b">{{ m.title(id, i) }}</span>{% if sec.key == 'education' and (i.details.degree or i.details.major) %}, {{ [i.details.degree, i.details.major] | select | join(' · ') }}{% endif %}
+      {% set org = i.organization if i.organization and i.organization != i.title else '' %}
+      {% if org or i.role %}<div class="i">{{ [org, i.role] | select | join(', ') }}</div>{% endif %}
+      {% if sec.key == 'languages' and (i.details.score or i.details.level) %}<div>{{ i.details.score or i.details.level }}</div>{% endif %}
+      {% if sec.key == 'awards' and i.details.rank %}<div>{{ i.details.rank }}{% if i.details.host %}, {{ i.details.host }}{% endif %}</div>{% endif %}
+      {{ m.lines(id, i) }}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
 </section>
-{% endfor %}
-{% if c.skills %}<section data-section="skills"><h2>기술</h2>
-  <div class="chips">{% for k in c.skills[0].keywords %}<span class="chip">{{ k }}</span>{% endfor %}</div>
-</section>{% endif %}
+{% endif %}{% endfor %}
+
+{% set skills = m.skills_all(x) | trim %}
+{% if skills %}
+<section data-section="skills"><h2>{{ '연구 도구 및 기술' if ko else 'Technical Skills' }}</h2><div>{{ skills }}</div></section>
+{% endif %}
+<section data-section="references"><h2>{{ '추천인' if ko else 'References' }}</h2><div>{{ '요청 시 제공한다.' if ko else 'Available upon request.' }}</div></section>
 {% endblock %}

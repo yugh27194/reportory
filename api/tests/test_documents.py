@@ -266,3 +266,54 @@ async def test_preview_selection_ranks_by_format(make_user):
     items = (await user.client.post(f"/documents/{doc['id']}/preview-selection")).json()["items"]
     assert {i["type"] for i in items} <= {"project", "activity", "experience"}
     assert [i["type"] for i in items if i["selected"]] == ["project"]
+
+
+async def test_inline_edits_create_new_version(make_user, mock_llm):
+    def rewrite(v):
+        return {
+            "sections": [
+                {
+                    "item_id": i["id"],
+                    "lines": [{"item_id": i["id"], "text": f"{i['title']} 경험을 정리했다."}],
+                }
+                for i in v["ITEMS"]
+            ]
+        }
+
+    mock_llm.on("rewrite_document", rewrite)
+    user = await make_user()
+    await seed(user)
+    doc, _ = await make_version(user, "resume_ko")
+    await drain_jobs()
+    v1 = (await user.client.get(f"/documents/{doc['id']}/versions/1")).json()
+    items = v1["content"]["x-reportory"]["items"]
+    intern_id = next(k for k, v in items.items() if v["type"] == "experience")
+    assert 'data-edit="line"' in v1["html"] and 'data-edit="title"' in v1["html"]
+
+    calls_before = list(mock_llm.calls)
+    r = await user.client.post(
+        f"/documents/{doc['id']}/versions/1/edits",
+        json={
+            "items": {
+                intern_id: {
+                    "title": "백엔드 개발 인턴",
+                    "lines": ["결제 API를 만들었다.\n응답 시간을 줄였다.", "  "],
+                }
+            },
+        },
+    )
+    assert r.status_code == 202, r.text
+    assert r.json()["version"]["version"] == 2
+    await drain_jobs()
+    assert mock_llm.calls == calls_before  # 다시 그리기는 LLM을 부르지 않는다
+    body, pages, text = await pdf_text(user, doc["id"], version=2)
+    edited = body["content"]["x-reportory"]["items"][intern_id]
+    assert edited["title"] == "백엔드 개발 인턴"
+    assert edited["lines"] == ["결제 API를 만들었다.", "응답 시간을 줄였다."]
+    assert body["options"]["edited_from"] == 1
+    assert "백엔드 개발 인턴" in text and "결제 API를 만들었다." in text
+    work = next(w for w in body["content"]["work"] if w["x-itemId"] == intern_id)
+    assert work["highlights"] == edited["lines"]
+    # 원래 버전은 그대로다.
+    v1_again = (await user.client.get(f"/documents/{doc['id']}/versions/1")).json()
+    assert v1_again["content"]["x-reportory"]["items"][intern_id]["title"] == "백엔드 인턴"

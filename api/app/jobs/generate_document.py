@@ -92,7 +92,8 @@ async def run(db: UserDB, payload: dict) -> dict:
     )
     profile = (
         await db.one(
-            """select display_name, display_name_en, headline, email_public, links, interests
+            """select display_name, display_name_en, headline, email_public, links, interests,
+                      school, major
            from profiles where id = :user_id"""
         )
         or {}
