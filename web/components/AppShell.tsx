@@ -22,6 +22,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { OliveTree } from "@/components/OliveTree";
+import { TourProvider } from "@/components/Tour";
 import { Brand } from "@/components/ui";
 import { api, post } from "@/lib/api";
 import { supabaseBrowser } from "@/lib/supabase/client";
@@ -222,7 +223,7 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
       <Link href="/dashboard" className="px-2 pt-2 text-xl" onClick={onNavigate}>
         <Brand dark />
       </Link>
-      <Link href="/journal" onClick={onNavigate} className="btn btn-accent w-full justify-start">
+      <Link href="/journal" onClick={onNavigate} className="btn btn-accent w-full justify-start" data-tour="write">
         <NotebookPen size={16} /> 오늘 일기 쓰기
       </Link>
       <NavLinks onNavigate={onNavigate} />
@@ -254,43 +255,47 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [drawer, setDrawer] = useState(false);
+  const me = useMe();
+  const autoTour = !!me.data && !me.data.profile.tutorial_completed_at;
   return (
-    <div className="min-h-screen lg:pl-64">
-      <GrowthBackdrop />
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 bg-ink lg:block">
-        <SidebarBody />
-      </aside>
-      {drawer && (
-        <div className="fixed inset-0 z-40 lg:hidden">
-          <div className="absolute inset-0 bg-ink/50" onClick={() => setDrawer(false)} />
-          <aside className="absolute inset-y-0 left-0 w-72 bg-ink">
-            <button
-              className="absolute top-4 right-3 text-white/60"
-              onClick={() => setDrawer(false)}
-              aria-label="메뉴 닫기"
-            >
-              <X size={20} />
-            </button>
-            <SidebarBody onNavigate={() => setDrawer(false)} />
-          </aside>
-        </div>
-      )}
-      <header className="sticky top-0 z-20 flex h-14 items-center gap-2 border-b border-line/70 bg-paper/85 px-4 backdrop-blur lg:px-8">
-        <button
-          className="btn-ghost -ml-1 rounded-lg p-2 lg:hidden"
-          onClick={() => setDrawer(true)}
-          aria-label="메뉴 열기"
-        >
-          <Menu size={20} />
-        </button>
-        <Link href="/dashboard" className="text-lg lg:hidden">
-          <Brand />
-        </Link>
-        <div className="ml-auto">
-          <NotificationBell />
-        </div>
-      </header>
-      <main className="relative z-10 mx-auto max-w-6xl px-4 py-8 lg:px-8">{children}</main>
-    </div>
+    <TourProvider autoStart={autoTour}>
+      <div className="min-h-screen lg:pl-64">
+        <GrowthBackdrop />
+        <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 bg-ink lg:block">
+          <SidebarBody />
+        </aside>
+        {drawer && (
+          <div className="fixed inset-0 z-40 lg:hidden">
+            <div className="absolute inset-0 bg-ink/50" onClick={() => setDrawer(false)} />
+            <aside className="absolute inset-y-0 left-0 w-72 bg-ink">
+              <button
+                className="absolute top-4 right-3 text-white/60"
+                onClick={() => setDrawer(false)}
+                aria-label="메뉴 닫기"
+              >
+                <X size={20} />
+              </button>
+              <SidebarBody onNavigate={() => setDrawer(false)} />
+            </aside>
+          </div>
+        )}
+        <header className="sticky top-0 z-20 flex h-14 items-center gap-2 border-b border-line/70 bg-paper/85 px-4 backdrop-blur lg:px-8">
+          <button
+            className="btn-ghost -ml-1 rounded-lg p-2 lg:hidden"
+            onClick={() => setDrawer(true)}
+            aria-label="메뉴 열기"
+          >
+            <Menu size={20} />
+          </button>
+          <Link href="/dashboard" className="text-lg lg:hidden">
+            <Brand />
+          </Link>
+          <div className="ml-auto">
+            <NotificationBell />
+          </div>
+        </header>
+        <main className="relative z-10 mx-auto max-w-6xl px-4 py-8 lg:px-8">{children}</main>
+      </div>
+    </TourProvider>
   );
 }

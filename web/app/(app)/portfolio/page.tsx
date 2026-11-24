@@ -109,7 +109,10 @@ export default function PortfolioPage() {
 
       {view === "tree" && all.length > 0 && (
         <div className="mb-8 grid gap-6 xl:grid-cols-[1fr_320px]">
-          <section className="overflow-hidden rounded-3xl border border-line/80 bg-gradient-to-b from-mint/50 via-paper to-cream/60 p-2 shadow-card sm:p-4">
+          <section
+            className="overflow-hidden rounded-3xl border border-line/80 bg-gradient-to-b from-mint/50 via-paper to-cream/60 p-2 shadow-card sm:p-4"
+            data-tour="tree"
+          >
             <SkillTree items={all} selected={picked} onSelect={setPicked} />
             <p className="pb-2 text-center text-xs text-muted">
               잎을 누르면 항목을 본다. 점이 붙은 잎은 공개 항목이다.

@@ -13,7 +13,7 @@ router = APIRouter(tags=["me"])
 
 PROFILE_COLUMNS = """id, handle, display_name, display_name_en, headline, email_public, links, goal,
   interests, target_roles, school, major, grade, region, public_profile_enabled,
-  llm_consent_at, onboarding_completed_at, notify_email, created_at, updated_at"""
+  llm_consent_at, onboarding_completed_at, tutorial_completed_at, notify_email, created_at, updated_at"""
 
 
 async def ensure_profile(db: UserDB) -> dict:
@@ -96,6 +96,22 @@ async def consent(db: UserDB = Depends(get_user_db)):
     await ensure_profile(db)
     await db.execute(
         "update profiles set llm_consent_at = coalesce(llm_consent_at, now()) where id = :user_id"
+    )
+    return await ensure_profile(db)
+
+
+class TutorialIn(BaseModel):
+    completed: bool = True
+
+
+@router.post("/me/tutorial")
+async def tutorial(body: TutorialIn, db: UserDB = Depends(get_user_db)):
+    """튜토리얼을 마쳤거나 건너뛰면 completed=true, 다시 보려면 false."""
+    await ensure_profile(db)
+    await db.execute(
+        """update profiles set tutorial_completed_at = case when :done then now() else null end
+           where id = :user_id""",
+        done=body.completed,
     )
     return await ensure_profile(db)
 

@@ -79,7 +79,7 @@ export function PageHeader({
   eyebrow?: string;
 }) {
   return (
-    <div className="mb-6 flex flex-wrap items-end gap-4">
+    <div className="mb-6 flex flex-wrap items-end gap-4" data-tour="page-header">
       <div className="mr-auto min-w-0">
         {eyebrow && <p className="section-title mb-1">{eyebrow}</p>}
         <h1 className="page-title">{title}</h1>

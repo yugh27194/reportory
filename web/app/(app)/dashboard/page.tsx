@@ -90,7 +90,7 @@ export default function DashboardPage() {
       </section>
 
       <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
-        <section className="card grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+        <section className="card grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]" data-tour="growth">
           <Link
             href="/portfolio"
             className="group relative flex flex-col items-center rounded-2xl bg-gradient-to-b from-mint/60 to-cream/50 p-3"

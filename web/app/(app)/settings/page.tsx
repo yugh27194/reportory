@@ -1,11 +1,12 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Download, ExternalLink, Plus, ShieldCheck, Trash2, Upload, X } from "lucide-react";
+import { Compass, Download, ExternalLink, Plus, ShieldCheck, Trash2, Upload, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ErrorText } from "@/components/ErrorText";
+import { useTour } from "@/components/Tour";
 import { PageHeader, Spinner } from "@/components/ui";
 import { api, del, patch, post } from "@/lib/api";
 import { env } from "@/lib/env";
@@ -36,6 +37,7 @@ type Link_ = { label: string; url: string };
 export default function SettingsPage() {
   const qc = useQueryClient();
   const router = useRouter();
+  const tour = useTour();
   const me = useQuery({ queryKey: ["me"], queryFn: () => api<{ profile: Profile }>("/me") });
   const [form, setForm] = useState({
     display_name: "",
@@ -132,7 +134,15 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Settings" title="설정" />
+      <PageHeader
+        eyebrow="Settings"
+        title="설정"
+        actions={
+          <button className="btn" onClick={() => tour.start()}>
+            <Compass size={15} /> 사용법 다시 보기
+          </button>
+        }
+      />
 
       <Section title="프로필" desc="문서 머리말과 공개 프로필에 쓰인다.">
         <form
@@ -152,7 +162,13 @@ export default function SettingsPage() {
           </label>
           <label className="sm:col-span-2">
             <span className="label">한 줄 소개</span>
-            <input className="input" maxLength={120} value={form.headline} onChange={set("headline")} placeholder="예: 데이터로 문제를 푸는 컴퓨터학과 3학년이다." />
+            <input
+              className="input"
+              maxLength={120}
+              value={form.headline}
+              onChange={set("headline")}
+              placeholder="예: 데이터로 문제를 푸는 컴퓨터학과 3학년이다."
+            />
           </label>
           <label>
             <span className="label">목표</span>
@@ -209,7 +225,9 @@ export default function SettingsPage() {
                     className="input w-32"
                     placeholder="이름"
                     value={l.label}
-                    onChange={(e) => setLinks((ls) => ls.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))}
+                    onChange={(e) =>
+                      setLinks((ls) => ls.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))
+                    }
                   />
                   <input
                     className="input"
@@ -217,12 +235,21 @@ export default function SettingsPage() {
                     value={l.url}
                     onChange={(e) => setLinks((ls) => ls.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)))}
                   />
-                  <button type="button" className="btn btn-ghost" onClick={() => setLinks((ls) => ls.filter((_, j) => j !== i))} aria-label="링크 지우기">
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    onClick={() => setLinks((ls) => ls.filter((_, j) => j !== i))}
+                    aria-label="링크 지우기"
+                  >
                     <X size={14} />
                   </button>
                 </div>
               ))}
-              <button type="button" className="btn btn-sm" onClick={() => setLinks((ls) => [...ls, { label: "", url: "" }])}>
+              <button
+                type="button"
+                className="btn btn-sm"
+                onClick={() => setLinks((ls) => [...ls, { label: "", url: "" }])}
+              >
                 <Plus size={12} /> 링크 추가
               </button>
             </div>
@@ -242,13 +269,21 @@ export default function SettingsPage() {
       <Section title="공개 프로필" desc="공개로 표시한 승인 항목과 공개 문서만 보인다.">
         <div className="flex flex-wrap items-center gap-3">
           {p?.public_profile_enabled && p.handle ? (
-            <Link className="inline-flex items-center gap-1 text-sm font-medium text-deep underline" href={`/p/${p.handle}`} target="_blank">
+            <Link
+              className="inline-flex items-center gap-1 text-sm font-medium text-deep underline"
+              href={`/p/${p.handle}`}
+              target="_blank"
+            >
               {env.siteUrl.replace(/^https?:\/\//, "")}/p/{p.handle} <ExternalLink size={14} />
             </Link>
           ) : (
             <p className="text-sm text-muted">지금은 꺼져 있다.</p>
           )}
-          <button className="btn ml-auto" disabled={togglePublic.isPending || !p} onClick={() => togglePublic.mutate(!p?.public_profile_enabled)}>
+          <button
+            className="btn ml-auto"
+            disabled={togglePublic.isPending || !p}
+            onClick={() => togglePublic.mutate(!p?.public_profile_enabled)}
+          >
             {p?.public_profile_enabled ? "공개 끄기" : "공개 켜기"}
           </button>
         </div>
@@ -276,7 +311,11 @@ export default function SettingsPage() {
 
       <Section title="데이터 내보내기" desc="JSON Resume, 항목, 일기, 증빙 파일을 ZIP 하나로 받는다.">
         <div className="flex flex-wrap items-center gap-3">
-          <button className="btn" onClick={() => startExport.mutate()} disabled={startExport.isPending || ["queued", "running"].includes(exp?.status ?? "")}>
+          <button
+            className="btn"
+            onClick={() => startExport.mutate()}
+            disabled={startExport.isPending || ["queued", "running"].includes(exp?.status ?? "")}
+          >
             내보내기 파일 만들기
           </button>
           {exp && ["queued", "running"].includes(exp.status) && <Spinner label="준비하는 중이다" />}
@@ -295,7 +334,12 @@ export default function SettingsPage() {
             먼저 데이터를 내보내 두는 것을 권한다. 삭제하려면 아래에 <b className="text-ink">계정 삭제</b>를 입력한다.
           </p>
           <div className="flex flex-wrap gap-2">
-            <input className="input w-48" value={confirmText} onChange={(e) => setConfirmText(e.target.value)} placeholder="계정 삭제" />
+            <input
+              className="input w-48"
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              placeholder="계정 삭제"
+            />
             <button
               className="btn btn-danger"
               disabled={confirmText !== "계정 삭제" || deleteAccount.isPending}

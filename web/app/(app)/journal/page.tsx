@@ -139,7 +139,7 @@ function EntryCard({ entry }: { entry: Entry }) {
   const time = new Date(entry.created_at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
 
   return (
-    <article className="rounded-xl border border-line/70 bg-white/80 p-4">
+    <article className="rounded-xl border border-line/70 bg-white/80 p-4" data-tour="review-help">
       <div className="mb-2 flex items-center gap-2 text-xs text-muted">
         <span>{time}에 씀</span>
         {!editing && (
@@ -182,6 +182,12 @@ function EntryCard({ entry }: { entry: Entry }) {
     </article>
   );
 }
+
+/** 튜토리얼 '예시로 써 보기'가 채우는 일기. 실제 데이터가 아니라 연습용이라고 밝힌다. */
+const SAMPLE_ENTRY =
+  "오늘 데이터분석 동아리 스터디에서 Python과 pandas로 학교 식당 이용 데이터를 정리했다. " +
+  "팀원 4명 중 나는 데이터 전처리와 시각화를 맡았고, 다음 주 발표 자료도 내가 만들기로 했다. " +
+  "처음 써 본 seaborn이 생각보다 편해서 따로 더 공부해 볼 생각이다.";
 
 const SPINES = ["#224b46", "#2a3d52", "#38b2a6", "#0e1b2a", "#2d625b", "#1a2b3e"];
 
@@ -413,6 +419,15 @@ export default function JournalPage() {
     },
   });
 
+  useEffect(() => {
+    const fill = () => {
+      setBody((b) => b || SAMPLE_ENTRY);
+      setTimeout(() => document.querySelector<HTMLElement>('[data-tour="editor"] textarea')?.focus(), 50);
+    };
+    window.addEventListener("rp:sample-entry", fill);
+    return () => window.removeEventListener("rp:sample-entry", fill);
+  }, []);
+
   function go(day: string, dir?: "next" | "prev") {
     if (day > today) return;
     setTurn((t) => ({ key: t.key + 1, dir: dir ?? (day >= selected ? "next" : "prev") }));
@@ -466,7 +481,7 @@ export default function JournalPage() {
         }
       />
 
-      <section className="mb-8 rounded-3xl bg-gradient-to-b from-cream to-paper pb-4">
+      <section className="mb-8 rounded-3xl bg-gradient-to-b from-cream to-paper pb-4" data-tour="bookshelf">
         <Bookshelf
           year={year}
           cal={cal.data}
@@ -525,7 +540,7 @@ export default function JournalPage() {
               </button>
             </div>
 
-            <div className="rounded-xl border border-line/80 bg-white">
+            <div className="rounded-xl border border-line/80 bg-white" data-tour="editor">
               <textarea
                 className="block min-h-36 w-full resize-y rounded-t-xl border-0 bg-[repeating-linear-gradient(transparent,transparent_31px,#ebe4d6_31px,#ebe4d6_32px)] bg-local px-5 pt-[6px] pb-4 text-[15px] leading-8 outline-none placeholder:text-muted/60"
                 placeholder={

@@ -151,6 +151,7 @@ export type Profile = {
   llm_consent_at: string | null;
   headline: string | null;
   onboarding_completed_at: string | null;
+  tutorial_completed_at: string | null;
   notify_email: boolean;
 };
 
