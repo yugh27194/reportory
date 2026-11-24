@@ -67,6 +67,20 @@ class Settings(BaseSettings):
     # 목표 기준선 기본 프리셋: dev_job | biz_job | public_job | grad_school
     spec_default_preset: str = "dev_job"
 
+    # 활동 추천(Phase 3). 공고 검색은 Claude 웹 검색 도구를 쓴다.
+    search_tool_type: str = (
+        "web_search_20250305"  # web_search_20260209는 Sonnet·Opus 전용(동적 필터링)
+    )
+    search_max_uses: int = 3  # 검색어 하나에 Claude가 검색하는 최대 횟수
+    search_max_queries: int = 12  # 하루 수집에 쓰는 검색어 수
+    crawler_user_agent: str = "reportory-bot/0.1 (+https://github.com/yugh27194/reportory)"
+    crawler_daily_page_limit: int = 100  # 인계서 상한은 300
+    crawler_site_interval_seconds: float = Field(default=2.0, ge=0)
+    crawler_max_text_chars: int = 15000
+    crawler_refetch_days: int = 7  # 이 기간 안에 읽은 공고는 다시 읽지 않는다
+    reco_top_n: int = 30  # 사용자마다 저장하는 추천 수
+    reco_reason_top_n: int = 20  # 이유를 만드는 상위 추천 수
+
     cron_secret: str = ""
     allowed_origins: str = "http://localhost:3000"
 

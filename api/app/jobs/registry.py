@@ -11,8 +11,10 @@ from app.jobs import (
     extract_entry,
     generate_document,
     imports,
+    opportunities,
     period_summary,
     process_evidence,
+    recommendations,
     render_document,
 )
 
@@ -24,6 +26,7 @@ FailureHook = Callable[[UserDB, dict], Awaitable[None]]
 class JobSpec:
     run: Handler
     on_final_failure: FailureHook | None = None
+    system: bool = False  # 사용자 없이 도는 작업(공고 수집). run은 SystemDB를 받는다
 
 
 async def _noop(db: UserDB, payload: dict) -> dict:
@@ -47,4 +50,7 @@ HANDLERS: dict[str, JobSpec] = {
     "render_document": JobSpec(render_document.run, render_document.on_final_failure),
     "export_data": JobSpec(account.export_data),
     "delete_account": JobSpec(account.delete_account),
+    "collect_opportunities": JobSpec(opportunities.collect, system=True),
+    "fetch_opportunity_url": JobSpec(opportunities.fetch_url),
+    "score_recommendations": JobSpec(recommendations.run),
 }

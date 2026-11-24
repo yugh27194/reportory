@@ -89,7 +89,13 @@ Supabase Cron이 `POST /api/v1/internal/cron/{task}`를 `X-Cron-Secret` 헤더�
 | `weekly_summary` | 일요일 23:10 | `10 14 * * 0` |
 | `monthly_summary` | 매일 23:20(말일에만 실행) | `20 14 * * *` |
 | `evidence_expiry` | 매일 09:30 | `30 0 * * *` |
+| `collect_opportunities` | 매일 03:00 | `0 18 * * *` |
+| `score_recommendations` | 매일 04:00 | `0 19 * * *` |
+| `application_auto_transitions` | 매일 00:10 | `10 15 * * *` |
+| `result_reminders` | 매일 09:00 | `0 0 * * *` |
 | `requeue_stuck_jobs` | 15분마다 | `*/15 * * * *` |
+
+공고 수집(`collect_opportunities`)은 Claude 웹 검색 도구로 검색하고, 페이지는 서버가 직접 읽는다(robots.txt 확인, 사이트당 2초 간격). 한 번 돌 때 검색어 12개, 새 페이지 최대 100개를 처리한다(`SEARCH_MAX_QUERIES`, `CRAWLER_DAILY_PAGE_LIMIT`). 웹 검색은 Anthropic 콘솔에서 조직 설정의 웹 검색이 켜져 있어야 하고, 검색 1,000회당 별도 요금이 붙는다.
 
 로컬에서 바로 시험하려면 `api/.env`에 `CRON_SECRET`을 정하고 같은 값을 헤더로 보낸다.
 

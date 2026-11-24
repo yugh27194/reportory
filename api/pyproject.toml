@@ -20,6 +20,7 @@ dependencies = [
   "playwright>=1.65.2",
   "tzdata>=2026.6",
   "anthropic>=2.13.0",
+  "trafilatura>=2.0",
 ]
 
 [dependency-groups]

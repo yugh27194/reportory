@@ -87,5 +87,83 @@ async def cron(task: str, force: bool = False, db: SystemDB = Depends(get_system
         return {"task": task, "users": await _enqueue_summaries(db, "month", start, end)}
     if task == "evidence_expiry":
         return {"task": task, "notified": await _evidence_expiry(db)}
-    # 공고 수집·추천·지원 알림은 Phase 3에서 추가한다.
+    if task == "collect_opportunities":
+        return {"task": task, **await _enqueue_system_once(db, "collect_opportunities")}
+    if task == "score_recommendations":
+        return {"task": task, "users": await _enqueue_scoring(db)}
+    if task == "application_auto_transitions":
+        return {"task": task, "changed": await _auto_transitions(db)}
+    if task == "result_reminders":
+        return {"task": task, **await _result_reminders(db)}
     raise not_found("알 수 없는 정기 작업이다.")
+
+
+async def _enqueue_system_once(db: SystemDB, job_type: str) -> dict:
+    """사용자 없는 작업을 넣는다. 이미 대기·실행 중이면 또 넣지 않는다."""
+    busy = await db.scalar(
+        """select 1 from jobs where user_id is null and type = :t
+             and status in ('queued', 'running') limit 1""",
+        t=job_type,
+    )
+    if busy:
+        return {"skipped": "already_queued"}
+    return {"job_id": await enqueue(db, job_type, {})}
+
+
+async def _enqueue_scoring(db: SystemDB) -> int:
+    """항목이 있거나 관심 분야를 정한 사용자마다 추천 계산을 넣는다."""
+    users = await db.all(
+        """select p.id as user_id from profiles p
+           where (exists (select 1 from items i where i.user_id = p.id and i.status = 'approved')
+                  or cardinality(p.interests) > 0 or cardinality(p.target_roles) > 0)
+             and not exists (select 1 from jobs j where j.user_id = p.id
+                             and j.type = 'score_recommendations'
+                             and j.status in ('queued', 'running'))"""
+    )
+    for u in users:
+        await enqueue(db, "score_recommendations", {}, user_id=u["user_id"])
+    return len(users)
+
+
+async def _auto_transitions(db: SystemDB) -> int:
+    from app.db import UserDB
+    from app.services.applications import auto_transitions
+
+    users = await db.all(
+        """select distinct user_id from applications
+           where status in ('applied', 'accepted')"""
+    )
+    n = 0
+    for u in users:
+        n += await auto_transitions(UserDB(db.conn, u["user_id"]), today_kst())
+    return n
+
+
+async def _result_reminders(db: SystemDB) -> dict:
+    """발표일(없으면 마감 + 14일)이 지난 결과 대기 지원에 3일 간격으로 최대 3번, 마감 3일 전 알림 1번."""
+    today = today_kst()
+    results = await db.execute(
+        """insert into notifications (user_id, type, title, link, ref_id)
+           select a.user_id,
+                  'result_reminder_' || least(3, (:today - d.due) / 3 + 1),
+                  a.title || ' 결과가 나왔나요? 합격·불합격을 기록해 두면 추천이 더 정확해진다.',
+                  '/applications?open=' || a.id, a.id
+           from applications a
+           cross join lateral (select coalesce(a.result_announce_on, a.apply_deadline + 14) as due) d
+           where a.status in ('applied', 'awaiting_result') and d.due is not null
+             and d.due <= :today and (:today - d.due) % 3 = 0 and (:today - d.due) <= 6
+           on conflict do nothing""",
+        today=today,
+    )
+    deadlines = await db.execute(
+        """insert into notifications (user_id, type, title, link, ref_id)
+           select user_id, 'apply_deadline',
+                  title || ' 마감이 ' || to_char(apply_deadline, 'MM월 DD일') || '이다.',
+                  '/applications?open=' || id, id
+           from applications
+           where status = 'interested' and apply_deadline between :today and :soon
+           on conflict do nothing""",
+        today=today,
+        soon=today + timedelta(days=3),
+    )
+    return {"result_reminders": results, "deadline_reminders": deadlines}

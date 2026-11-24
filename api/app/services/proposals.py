@@ -189,6 +189,20 @@ async def accept(db: UserDB, proposal_id: UUID, edited: dict | None = None) -> d
             # 고른 값(resolutions)은 기록으로 남긴다.
             payload = await apply_attach(db, p["payload"], edited)
             edited = edited or {"applied": True}
+        case "application_update":
+            from app.services.applications import transition
+
+            data = p["payload"]
+            rd = data.get("result_date")
+            await transition(
+                db,
+                UUID(data["application_id"]),
+                data["to_status"],
+                source="evidence" if p.get("evidence_id") else "diary",
+                entry_id=p.get("entry_id"),
+                note=data.get("quote"),
+                result_date=date.fromisoformat(rd) if rd else None,
+            )
         case _:
             raise ApiError(422, "validation_error", "이 제안 종류는 아직 처리할 수 없다.")
     await _resolve(db, proposal_id, "accepted", payload if edited else None)

@@ -10,6 +10,7 @@ from app.config import get_settings
 from app.db import dispose_engine
 from app.routers import (
     account,
+    applications,
     documents,
     entries,
     evidence,
@@ -23,6 +24,7 @@ from app.routers import (
     me,
     proposals,
     public,
+    recommendations,
 )
 
 API_PREFIX = "/api/v1"
@@ -55,6 +57,8 @@ def create_app() -> FastAPI:
         imports,
         documents,
         account,
+        recommendations,
+        applications,
         jobs,
         public,
         internal,

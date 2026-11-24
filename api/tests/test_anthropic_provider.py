@@ -205,3 +205,68 @@ async def test_permanent_error_fails_job_immediately(make_user, pg):
         assert entry["extraction_status"] == "failed"
     finally:
         set_llm(None)
+
+
+async def test_web_search_collects_urls_only_from_result_blocks():
+    """검색 결과 블록의 URL만 모은다. 모델이 답변에 쓴 URL은 쓰지 않는다. pause_turn이면 이어 부른다."""
+    calls = []
+
+    def search_message(stop_reason, urls, text_url=None):
+        content = [
+            {
+                "type": "server_tool_use",
+                "id": f"srv_{len(calls)}",
+                "name": "web_search",
+                "input": {"query": "q"},
+            },
+            {
+                "type": "web_search_tool_result",
+                "tool_use_id": f"srv_{len(calls)}",
+                "content": [
+                    {
+                        "type": "web_search_result",
+                        "url": u,
+                        "title": "t",
+                        "encrypted_content": "x",
+                        "page_age": None,
+                    }
+                    for u in urls
+                ],
+            },
+        ]
+        if text_url:
+            content.append({"type": "text", "text": f"여기도 있다: {text_url}"})
+        return {
+            "id": "m",
+            "type": "message",
+            "role": "assistant",
+            "model": "claude-haiku-5-5",
+            "content": content,
+            "stop_reason": stop_reason,
+            "stop_sequence": None,
+            "usage": {"input_tokens": 10, "output_tokens": 5},
+        }
+
+    def handler(request):
+        body = json.loads(request.content)
+        calls.append(body)
+        assert body["tools"][0]["name"] == "web_search"
+        assert "output_config" not in body
+        if len(calls) == 1:
+            return httpx2.Response(
+                200, json=search_message("pause_turn", ["https://a.example.org/1"])
+            )
+        return httpx2.Response(
+            200,
+            json=search_message(
+                "end_turn",
+                ["https://b.example.org/2", "https://a.example.org/1"],
+                text_url="https://made-up.example.org/x",
+            ),
+        )
+
+    provider = AnthropicProvider("k", client=fake_client(handler))
+    client = LLMClient(provider, {"extract": "claude-sonnet-5-5", "light": "claude-haiku-5-5"})
+    hits = await client.search_web("대학생 해커톤 모집 2026")
+    assert [h["url"] for h in hits] == ["https://a.example.org/1", "https://b.example.org/2"]
+    assert len(calls) == 2 and calls[1]["messages"][-1]["role"] == "assistant"

@@ -19,3 +19,19 @@ def call_logger(db: UserDB) -> CallLogger:
             )
 
     return log_call
+
+
+def system_call_logger() -> CallLogger:
+    """사용자 없이 도는 정기 작업(공고 수집)용."""
+
+    async def log_call(row: dict) -> None:
+        async with get_engine().begin() as conn:
+            await SystemDB(conn).execute(
+                """insert into llm_calls (user_id, purpose, provider, model, prompt_version,
+                     input_tokens, output_tokens, latency_ms, success, error)
+                   values (null, :purpose, :provider, :model, :prompt_version, :input_tokens,
+                     :output_tokens, :latency_ms, :success, :error)""",
+                **{k: v for k, v in row.items() if k != "user_id"},
+            )
+
+    return log_call

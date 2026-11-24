@@ -48,10 +48,11 @@ async def run_once() -> bool:
     try:
         if spec is None:
             raise LookupError(f"알 수 없는 작업 유형: {job['type']}")
-        if job["user_id"] is None:
+        if job["user_id"] is None and not spec.system:
             raise LookupError("사용자 작업에 user_id가 없다.")
         async with get_engine().begin() as conn:
-            result = await spec.run(UserDB(conn, job["user_id"]), job["payload"])
+            db = SystemDB(conn) if spec.system else UserDB(conn, job["user_id"])
+            result = await spec.run(db, job["payload"])
             await SystemDB(conn).execute(
                 """update jobs set status = 'succeeded', result = cast(:r as jsonb),
                      locked_at = null, last_error = null where id = :id""",

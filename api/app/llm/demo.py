@@ -191,3 +191,72 @@ def process_evidence(variables: dict[str, Any]) -> dict[str, Any]:
 
 HANDLERS["process_evidence"] = process_evidence
 HANDLERS["import_resume"] = extract_entry
+
+
+# ----- 활동 추천(Phase 3) -----
+_CATEGORY_RULES = [
+    ("hackathon", re.compile(r"해커톤|hackathon", re.I)),
+    ("research_internship", re.compile(r"학부연구생|연구\s*인턴|연구실 인턴")),
+    ("internship", re.compile(r"인턴")),
+    ("scholarship", re.compile(r"장학")),
+    ("contest", re.compile(r"공모전|경진대회|챌린지")),
+    ("education", re.compile(r"부트캠프|교육생|아카데미")),
+    ("external_activity", re.compile(r"서포터즈|기자단|대외활동|봉사단|앰배서더")),
+]
+_DATE = re.compile(r"(20\d{2})\s*[.\-/년]\s*(\d{1,2})\s*[.\-/월]\s*(\d{1,2})")
+
+
+def normalize_opportunity(variables: dict[str, Any]) -> dict[str, Any]:
+    """규칙 기반 공고 정리: 모집 표현이 있으면 공고로 보고, '마감'·'접수' 근처 날짜를 마감일로 쓴다."""
+    page = str(variables.get("PAGE", ""))
+    title = str(variables.get("PAGE_TITLE") or "").split("|")[0].split(" - ")[0].strip()
+    is_opp = bool(re.search(r"모집|공모|참가자|지원\s*자격|선발", page))
+    category = next(
+        (c for c, rx in _CATEGORY_RULES if rx.search(title + " " + page[:2000])), "other"
+    )
+    deadline = None
+    for line in page.splitlines():
+        if re.search(r"마감|접수\s*기간|모집\s*기간|신청\s*기간", line):
+            dates = _DATE.findall(line)
+            if dates:
+                y, m, d = dates[-1]
+                deadline = f"{int(y):04d}-{int(m):02d}-{int(d):02d}"
+                break
+    summary = " ".join(sentences(page)[:2])[:300]
+    return {
+        "is_opportunity": is_opp and bool(title),
+        "title": title or "제목 없는 공고",
+        "organizer": "",
+        "category": category,
+        "summary": summary or title,
+        "eligibility": {"grades": [], "majors": [], "region": "", "team": None, "notes": ""},
+        "benefits": "",
+        "apply_start": None,
+        "apply_deadline": deadline,
+        "result_announce_on": None,
+        "activity_start": None,
+        "activity_end": None,
+        "location": "",
+        "is_online": None,
+        "tags": skills_in(page)[:8],
+    }
+
+
+def reco_reason(variables: dict[str, Any]) -> dict[str, Any]:
+    items = variables.get("ITEMS") or []
+    opp = variables.get("OPPORTUNITY") or {}
+    goal = variables.get("GOAL") or "진로"
+    if items:
+        first = items[0]
+        return {
+            "reason": f"{goal} 목표와 이어지는 공고다. '{first['title']}' 경험을 살릴 수 있다.",
+            "reason_item_ids": [first["id"]],
+        }
+    return {
+        "reason": f"{goal} 목표와 관심 분야에 맞는 '{opp.get('title', '')}' 공고다.",
+        "reason_item_ids": [],
+    }
+
+
+HANDLERS["normalize_opportunity"] = normalize_opportunity
+HANDLERS["reco_reason"] = reco_reason

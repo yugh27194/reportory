@@ -126,3 +126,50 @@ class PeriodSummary(BaseModel):
 
     summary_md: str  # 10문장 이내
     highlights: list[Highlight] = []
+
+
+OpportunityCategory = Literal[
+    "contest",
+    "hackathon",
+    "external_activity",
+    "internship",
+    "research_internship",
+    "education",
+    "scholarship",
+    "other",
+]
+
+
+class Eligibility(BaseModel):
+    grades: list[int] = []  # 비어 있으면 제한 없음
+    majors: list[str] = []
+    region: str = ""  # 없으면 빈 문자열
+    team: Literal["individual", "team", "both"] | None = None
+    notes: str = ""
+
+
+class OpportunityExtract(BaseModel):
+    """공고 정규화(인계서 10.6절). 유니언을 줄이려고 글자 칸은 null 대신 빈 문자열을 쓴다."""
+
+    is_opportunity: bool
+    title: str
+    organizer: str = ""
+    category: OpportunityCategory
+    summary: str  # 3문장 이내, 원문을 그대로 옮기지 않고 요약
+    eligibility: Eligibility
+    benefits: str = ""
+    apply_start: date | None = None
+    apply_deadline: date | None = None
+    result_announce_on: date | None = None
+    activity_start: date | None = None
+    activity_end: date | None = None
+    location: str = ""
+    is_online: bool | None = None
+    tags: list[str] = []  # 기술·분야 키워드
+
+
+class RecoReason(BaseModel):
+    """추천 이유(인계서 10.7절 4). reason_item_ids는 입력으로 준 항목 중에서만 고른다."""
+
+    reason: str  # 2문장 이내
+    reason_item_ids: list[UUID] = []

@@ -124,11 +124,88 @@ class AnthropicProvider:
         # Haiku 5.5에는 서버 측 거절 대체 모델이 없다.
         return not model.startswith("claude-haiku")
 
+    @staticmethod
+    async def _call(fn, model_name: str, **kwargs):
+        import anthropic
+
+        try:
+            return await fn(**kwargs)
+        except anthropic.AuthenticationError as exc:
+            raise LLMError("Anthropic API 키가 올바르지 않다(HTTP 401).", permanent=True) from exc
+        except anthropic.PermissionDeniedError as exc:
+            raise LLMError("이 API 키로는 쓸 수 없는 요청이다(HTTP 403).", permanent=True) from exc
+        except anthropic.NotFoundError as exc:
+            raise LLMError(f"모델을 찾을 수 없다(HTTP 404): {model_name}", permanent=True) from exc
+        except anthropic.BadRequestError as exc:
+            # 크레딧 부족, 잘못된 파라미터 등. 메시지는 API가 만든 설명이다.
+            raise LLMError(
+                f"요청 오류(HTTP 400): {str(exc.message)[:300]}", permanent=True
+            ) from exc
+        except anthropic.RateLimitError as exc:
+            raise LLMError("요청이 많아 잠시 막혔다(HTTP 429). 잠시 뒤 다시 시도한다.") from exc
+        except anthropic.APITimeoutError as exc:
+            raise LLMError("LLM 응답 시간이 초과됐다.") from exc
+        except anthropic.APIConnectionError as exc:
+            raise LLMError("LLM API에 연결하지 못했다.") from exc
+        except anthropic.APIStatusError as exc:
+            raise LLMError(f"LLM API 오류(HTTP {exc.status_code})") from exc
+
+    async def search(
+        self, *, query: str, model: str, max_uses: int, tool_type: str, instructions: str
+    ) -> ProviderResult:
+        """Claude 웹 검색 도구로 검색하고, API가 돌려준 검색 결과 블록에서만 URL을 모은다.
+
+        모델이 쓴 글(답변)은 쓰지 않는다. 그래서 모델이 URL을 지어낼 수 없다.
+        """
+        if self.client is None:
+            raise LLMError("ANTHROPIC_API_KEY가 설정되지 않았다.", permanent=True)
+        tool = {
+            "type": tool_type,
+            "name": "web_search",
+            "max_uses": max_uses,
+            "user_location": {"type": "approximate", "country": "KR", "timezone": "Asia/Seoul"},
+        }
+        messages: list[dict[str, Any]] = [{"role": "user", "content": query}]
+        hits: dict[str, dict] = {}
+        tokens = {"input_tokens": 0, "output_tokens": 0}
+        for _ in range(3):  # pause_turn이면 이어서 부른다(최대 3번)
+            resp = await self._call(
+                self.client.messages.create,
+                model,
+                model=model,
+                max_tokens=2048,
+                system=instructions,
+                messages=messages,
+                tools=[tool],
+            )
+            usage = getattr(resp, "usage", None)
+            tokens["input_tokens"] += getattr(usage, "input_tokens", 0) or 0
+            tokens["output_tokens"] += getattr(usage, "output_tokens", 0) or 0
+            for block in resp.content:
+                if getattr(block, "type", None) != "web_search_tool_result":
+                    continue
+                content = getattr(block, "content", None)
+                if not isinstance(content, list):
+                    continue  # 검색 오류 블록
+                for r in content:
+                    url = getattr(r, "url", None)
+                    if url and url not in hits:
+                        hits[url] = {
+                            "url": url,
+                            "title": getattr(r, "title", "") or "",
+                            "page_age": getattr(r, "page_age", None),
+                        }
+            if resp.stop_reason != "pause_turn":
+                break
+            messages = [
+                {"role": "user", "content": query},
+                {"role": "assistant", "content": resp.content},
+            ]
+        return ProviderResult(data=list(hits.values()), **tokens)
+
     async def generate(
         self, *, purpose, system, user, schema, model, variables, attachments=None, effort=None
     ) -> ProviderResult:
-        import anthropic
-
         if self.client is None:
             raise LLMError("ANTHROPIC_API_KEY가 설정되지 않았다.", permanent=True)
         output_config: dict[str, Any] = {"format": {"type": "json_schema", "schema": schema}}
@@ -144,27 +221,7 @@ class AnthropicProvider:
         if self._supports_fallback(model):
             kwargs["betas"] = [self.FALLBACK_BETA]
             kwargs["fallbacks"] = "default"
-        try:
-            resp = await self.client.beta.messages.create(**kwargs)
-        except anthropic.AuthenticationError as exc:
-            raise LLMError("Anthropic API 키가 올바르지 않다(HTTP 401).", permanent=True) from exc
-        except anthropic.PermissionDeniedError as exc:
-            raise LLMError("이 API 키로는 쓸 수 없는 요청이다(HTTP 403).", permanent=True) from exc
-        except anthropic.NotFoundError as exc:
-            raise LLMError(f"모델을 찾을 수 없다(HTTP 404): {model}", permanent=True) from exc
-        except anthropic.BadRequestError as exc:
-            # 크레딧 부족, 잘못된 파라미터 등. 메시지는 API가 만든 설명이다.
-            raise LLMError(
-                f"요청 오류(HTTP 400): {str(exc.message)[:300]}", permanent=True
-            ) from exc
-        except anthropic.RateLimitError as exc:
-            raise LLMError("요청이 많아 잠시 막혔다(HTTP 429). 잠시 뒤 다시 시도한다.") from exc
-        except anthropic.APITimeoutError as exc:
-            raise LLMError("LLM 응답 시간이 초과됐다.") from exc
-        except anthropic.APIConnectionError as exc:
-            raise LLMError("LLM API에 연결하지 못했다.") from exc
-        except anthropic.APIStatusError as exc:
-            raise LLMError(f"LLM API 오류(HTTP {exc.status_code})") from exc
+        resp = await self._call(self.client.beta.messages.create, model, **kwargs)
         usage = getattr(resp, "usage", None)
         tokens = {
             "input_tokens": getattr(usage, "input_tokens", None),
@@ -206,6 +263,11 @@ class MockProvider:
         return ProviderResult(
             data=self.handlers[purpose](variables), input_tokens=0, output_tokens=0
         )
+
+    async def search(self, *, query, model, max_uses, tool_type, instructions) -> ProviderResult:
+        self.calls.append("web_search")
+        handler = self.handlers.get("web_search")
+        return ProviderResult(data=handler({"QUERY": query}) if handler else [])
 
 
 def _content(text: str, attachments: list[Attachment] | None) -> Any:
@@ -300,6 +362,49 @@ class LLMClient:
             if parsed is not None:
                 return parsed
         raise LLMError(f"LLM 출력 검증 실패: {last_error}")
+
+    async def search_web(
+        self,
+        query: str,
+        *,
+        log_call: CallLogger | None = None,
+        user_id: UUID | None = None,
+    ) -> list[dict]:
+        """웹 검색 결과 [{url, title, page_age}]. 본문은 직접 가져와야 한다(app/crawler)."""
+        s = get_settings()
+        prompt = load_prompt("web_search")
+        model = self.models["light"]
+        started = time.perf_counter()
+        error: str | None = None
+        result: ProviderResult | None = None
+        try:
+            result = await self.provider.search(
+                query=query,
+                model=model,
+                max_uses=s.search_max_uses,
+                tool_type=s.search_tool_type,
+                instructions=prompt.system,
+            )
+        except (LLMError, httpx.HTTPError) as exc:
+            error = str(exc) if isinstance(exc, LLMError) else type(exc).__name__
+            permanent = isinstance(exc, LLMError) and exc.permanent
+            if log_call:
+                await log_call(
+                    self._log_row("web_search", model, prompt, None, started, error, user_id)
+                )
+            raise LLMError(error, permanent=permanent) from exc
+        if log_call:
+            await log_call(
+                self._log_row("web_search", model, prompt, result, started, None, user_id)
+            )
+        hits = []
+        for h in result.data or []:
+            url = str(h.get("url") or "")
+            if url.startswith(("http://", "https://")):
+                hits.append(
+                    {"url": url, "title": h.get("title") or "", "page_age": h.get("page_age")}
+                )
+        return hits
 
     def _log_row(self, purpose, model, prompt, result, started, error, user_id) -> dict[str, Any]:
         return {

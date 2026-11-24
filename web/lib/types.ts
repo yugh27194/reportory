@@ -213,7 +213,11 @@ export const DOC_FORMATS: { key: DocFormat; label: string; desc: string }[] = [
   { key: "resume_ko", label: "국문 이력서", desc: "국내 기업·공공기관용. 자격증·어학은 표로 정리한다." },
   { key: "resume_en", label: "영문 Resume", desc: "외국계·해외 지원용 A4 1쪽. 행동 동사로 시작하는 bullet이다." },
   { key: "academic_cv", label: "Academic CV", desc: "대학원·연구실·연구 인턴용. 연구 경험을 앞에 둔다." },
-  { key: "project_portfolio", label: "프로젝트 포트폴리오", desc: "개발·데이터 직무용. 표지와 프로젝트별 쪽으로 만든다." },
+  {
+    key: "project_portfolio",
+    label: "프로젝트 포트폴리오",
+    desc: "개발·데이터 직무용. 표지와 프로젝트별 쪽으로 만든다.",
+  },
 ];
 
 export type DocumentRow = {
@@ -315,7 +319,14 @@ export type Stats = {
   latest_summary: PeriodSummary | null;
 };
 
-export type RadarAxis = "experience" | "project" | "activity" | "award" | "certification" | "language_test" | "publication";
+export type RadarAxis =
+  | "experience"
+  | "project"
+  | "activity"
+  | "award"
+  | "certification"
+  | "language_test"
+  | "publication";
 export type SpecPreset = "dev_job" | "biz_job" | "public_job" | "grad_school" | "custom";
 
 export type Growth = {
@@ -335,4 +346,118 @@ export type JournalCalendar = {
   year: number;
   years: number[];
   days: Record<string, { entries: number; chars: number; items: number }>;
+};
+
+export type OpportunityCategory =
+  | "contest"
+  | "hackathon"
+  | "external_activity"
+  | "internship"
+  | "research_internship"
+  | "education"
+  | "scholarship"
+  | "other";
+
+export const CATEGORY_LABELS: Record<OpportunityCategory, string> = {
+  contest: "공모전",
+  hackathon: "해커톤",
+  external_activity: "대외활동",
+  internship: "인턴십",
+  research_internship: "연구 인턴",
+  education: "교육",
+  scholarship: "장학금",
+  other: "기타",
+};
+
+export type Recommendation = {
+  id: string;
+  score: number;
+  score_breakdown: { sim: number; gap: number; pref: number; urgency: number };
+  reason: string | null;
+  feedback: "interested" | "dismissed" | "applied" | null;
+  opportunity_id: string;
+  title: string;
+  organizer: string | null;
+  category: OpportunityCategory;
+  summary: string | null;
+  source_url: string;
+  source_site: string | null;
+  apply_deadline: string | null;
+  activity_start: string | null;
+  activity_end: string | null;
+  benefits: string | null;
+  location: string | null;
+  is_online: boolean | null;
+  tags: string[];
+  added_by_me: boolean;
+  reason_items: { id: string; title: string; type: ItemType }[];
+};
+
+export type ApplicationStatus =
+  | "interested"
+  | "applied"
+  | "awaiting_result"
+  | "accepted"
+  | "rejected"
+  | "withdrawn"
+  | "active"
+  | "completed";
+
+export const APPLICATION_STATUS_LABELS: Record<ApplicationStatus, string> = {
+  interested: "관심",
+  applied: "지원함",
+  awaiting_result: "결과 대기",
+  accepted: "합격",
+  rejected: "불합격",
+  withdrawn: "취소",
+  active: "활동 중",
+  completed: "완료",
+};
+
+/** 화면에서 고를 수 있는 다음 상태(인계서 8.3절, 자동 전이는 뺀다). */
+export const NEXT_STATUSES: Record<ApplicationStatus, ApplicationStatus[]> = {
+  interested: ["applied", "withdrawn"],
+  applied: ["accepted", "rejected", "withdrawn"],
+  awaiting_result: ["accepted", "rejected", "withdrawn"],
+  accepted: ["active"],
+  active: ["completed"],
+  rejected: [],
+  withdrawn: [],
+  completed: [],
+};
+
+export type Application = {
+  id: string;
+  opportunity_id: string | null;
+  title: string;
+  organizer: string | null;
+  category: OpportunityCategory;
+  status: ApplicationStatus;
+  apply_deadline: string | null;
+  applied_at: string | null;
+  result_announce_on: string | null;
+  result_at: string | null;
+  activity_start: string | null;
+  activity_end: string | null;
+  result_note: string | null;
+  reflection: string | null;
+  item_id: string | null;
+  created_at: string;
+};
+
+export type ApplicationDetail = Application & {
+  events: {
+    from_status: ApplicationStatus | null;
+    to_status: ApplicationStatus;
+    source: string;
+    note: string | null;
+    created_at: string;
+  }[];
+  opportunity: {
+    id: string;
+    source_url: string;
+    summary: string | null;
+    benefits: string | null;
+    tags: string[];
+  } | null;
 };
