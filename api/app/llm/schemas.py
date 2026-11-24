@@ -114,3 +114,15 @@ class RewriteResult(BaseModel):
 
     summary: str | None = None  # Resume 상단 요약
     sections: list[DocSection]
+
+
+class Highlight(BaseModel):
+    item_id: UUID
+    text: str
+
+
+class PeriodSummary(BaseModel):
+    """주간·월간 요약(10.5절)."""
+
+    summary_md: str  # 10문장 이내
+    highlights: list[Highlight] = []

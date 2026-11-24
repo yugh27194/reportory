@@ -275,9 +275,11 @@ async def run(db: UserDB, payload: dict) -> dict:
         followups += 1
 
     await db.execute(
-        """update entries set extraction_status = 'succeeded', extracted_at = now()
+        """update entries set extraction_status = 'succeeded', extracted_at = now(),
+             summary = :summary
            where id = :id and user_id = :user_id""",
         id=entry_id,
+        summary=(result.entry_summary or None) if result.is_relevant else None,
     )
     if proposals or followups:
         await db.execute(
