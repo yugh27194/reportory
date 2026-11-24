@@ -32,3 +32,4 @@
 | 2026-11-24 | 화면을 위해 `GET /me/stats`, `POST /me/onboarding/complete`, `GET /documents/formats`, `GET /export/latest`, `GET /export/{job_id}/url`, `GET /documents/{id}/versions/{v}/html`을 더한다. 공개 프로필 한 줄 소개용 `profiles.headline`, 공개 문서용 `documents.is_public`은 0002 마이그레이션에 있다. | 홈·온보딩·설정·문서 화면에 필요하다. | 필요 없음 |
 | 2026-11-24 | 계정 삭제는 service role 키가 있으면 Supabase Admin API로, 없으면 DB에서 `auth.users`를 직접 지운다. | 로컬 개발에서도 동작해야 한다. | 필요 없음 |
 | 2026-11-24 | UI를 팔레트(남색 #0E1B2A, 짙은 청록 #224B46, 청록 #4FD1C5, 민트 #D9FFF8, 크림 #FFF7E6)로 개편했다. 앱은 남색 사이드바와 크림 바탕, 공개 프로필은 이력 중심 타임라인, 문서 PDF도 같은 색을 쓴다. 아이콘은 lucide-react다. | 사용자 요청(단조롭지 않은 UI, 지정 팔레트). | 확인 |
+| 2026-11-24 | API 의존성에 `tzdata`를 더한다. | Windows에는 시스템 시간대 데이터가 없어 `ZoneInfo("Asia/Seoul")`이 실패한다. | 필요 없음 |
