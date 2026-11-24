@@ -18,7 +18,7 @@
 ## 진행 상황
 
 - Phase 0(기반 구성): 대부분 끝났다. 남은 것: 실제 Supabase 프로젝트 연결, GitHub OAuth 앱 등록, CI 첫 실행 확인.
-- Phase 1(핵심 순환): 일기·추출·검토 큐·후속 질문·항목·병합·공개 프로필 기본이 동작한다. 남은 것: 실제 LLM 연결 뒤 골든 일기 평가(16장, `api/scripts/eval_extraction.py`), 임베딩을 쓰는 중복 감지(0.92)·KNOWN_ITEMS 유사도 선택(임베딩 제공사는 OpenAI로 확정, 어댑터는 `api/app/embeddings.py`).
+- Phase 1(핵심 순환): 일기·추출·검토 큐·후속 질문·항목·병합·공개 프로필 기본이 동작한다. 임베딩(OpenAI) 기반 중복 감지와 KNOWN_ITEMS 유사도 선택까지 들어갔다. 남은 것: 실제 LLM·임베딩 키로 골든 일기 10개 평가(16장, `api/scripts/eval_extraction.py`, 8개 이상 통과).
 - 인계서와 다르게 정한 것은 `docs/decisions.md`에 있다.
 
 ## 명령

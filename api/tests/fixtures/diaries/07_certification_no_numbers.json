@@ -1,0 +1,16 @@
+{
+  "entry_date": "2026-11-18",
+  "entry": "정보처리기사 실기 최종 합격했다! 드디어 끝났다.",
+  "known_items": [],
+  "open_applications": [],
+  "expect": {
+    "is_relevant": true,
+    "candidates": [
+      {
+        "action": "create",
+        "type": "certification"
+      }
+    ],
+    "forbidden_numbers_any": true
+  }
+}

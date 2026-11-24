@@ -11,30 +11,45 @@ from app.llm.schemas import ExtractionResult, ItemCandidate
 from app.llm.validators import validate_extraction
 from app.services.applications import OPEN_STATUSES, is_allowed
 from app.services.proposals import reject_pending_for_entry
-from app.services.skills import link_skills, normalize_skill
+from app.services.similarity import find_duplicates, safe_embed
+from app.services.skills import link_skills
 
 KNOWN_ITEMS_LIMIT = 40
 RECENT_ITEMS = 20
+SIMILAR_ITEMS = 20
 
 
-async def known_items(db: UserDB) -> list[dict[str, Any]]:
-    """KNOWN_ITEMS 문맥. 40개를 넘으면 최근 수정 20개와 진행 중 항목을 넣는다.
+async def known_items(db: UserDB, entry_body: str) -> list[dict[str, Any]]:
+    """KNOWN_ITEMS 문맥(10.2절).
 
-    임베딩 유사도 상위 20개는 임베딩 제공사가 정해진 뒤(19장) 추가한다.
+    40개 이하이면 모두 넣는다. 넘으면 최근 수정 20개, 일기 임베딩과 유사도 상위 20개,
+    진행 중 항목을 넣는다. 임베딩을 쓸 수 없으면 유사도 몫은 빠진다.
     """
-    total = await db.scalar(
-        """select count(*) from items
-           where user_id = :user_id and status in ('approved', 'proposed')"""
-    )
     where = "user_id = :user_id and status in ('approved', 'proposed')"
+    total = await db.scalar(f"select count(*) from items where {where}")
     if total > KNOWN_ITEMS_LIMIT:
+        ids = {
+            r["id"]
+            for r in await db.all(
+                f"""(select id from items where {where} order by updated_at desc
+                     limit {RECENT_ITEMS})
+                    union (select id from items where {where} and is_ongoing)"""
+            )
+        }
+        vectors = await safe_embed([entry_body])
+        if vectors:
+            similar = await db.all(
+                f"""select id from items where {where} and embedding is not null
+                    order by embedding <=> cast(:v as vector) limit {SIMILAR_ITEMS}""",
+                v=str(vectors[0]),
+            )
+            ids |= {r["id"] for r in similar}
         rows = await db.all(
-            f"""(select * from items where {where} order by updated_at desc limit {RECENT_ITEMS})
-                union
-                (select * from items where {where} and is_ongoing)"""
+            f"select * from items where {where} and id = any(:ids) order by updated_at desc",
+            ids=list(ids),
         )
     else:
-        rows = await db.all(f"select * from items where {where}")
+        rows = await db.all(f"select * from items where {where} order by updated_at desc")
     out = []
     for r in rows:
         skills = await db.all(
@@ -67,26 +82,7 @@ async def open_applications(db: UserDB) -> list[dict[str, Any]]:
     return [{**r, "id": str(r["id"])} for r in rows]
 
 
-async def _find_duplicate(db: UserDB, cand: ItemCandidate) -> UUID | None:
-    """같은 유형 항목 중 제목이 같은 항목을 찾는다.
-
-    인계서는 제목 임베딩 코사인 유사도 0.92 이상을 쓴다. 임베딩 제공사가 정해지기 전까지는
-    정규화한 제목이 같은 경우만 중복 의심으로 본다.
-    """
-    rows = await db.all(
-        """select id, title from items where user_id = :user_id and type = cast(:type as item_type)
-             and status in ('approved', 'proposed') order by created_at""",
-        type=cand.type,
-    )
-    target = normalize_skill(cand.title)
-    for r in rows:
-        if normalize_skill(r["title"]) == target:
-            return r["id"]
-    return None
-
-
-async def _create_item(db: UserDB, cand: ItemCandidate, entry_id: UUID) -> UUID:
-    dup = await _find_duplicate(db, cand)
+async def _create_item(db: UserDB, cand: ItemCandidate, entry_id: UUID, dup: UUID | None) -> UUID:
     item_id = await db.scalar(
         """insert into items (user_id, type, status, title, organization, role, start_date,
              end_date, is_ongoing, summary, details, metrics)
@@ -180,7 +176,7 @@ async def run(db: UserDB, payload: dict) -> dict:
         id=entry_id,
     )
 
-    items_ctx = await known_items(db)
+    items_ctx = await known_items(db, entry["body"])
     apps_ctx = await open_applications(db)
     entry_date: date = entry["entry_date"]
 
@@ -206,11 +202,15 @@ async def run(db: UserDB, payload: dict) -> dict:
         open_application_ids={UUID(a["id"]) for a in apps_ctx},
     )
 
+    creates = [i for i, c in enumerate(result.items) if c.action == "create"]
+    dups = dict(
+        zip(creates, await find_duplicates(db, [result.items[i] for i in creates]), strict=True)
+    )
     created: dict[int, UUID] = {}
     proposals = 0
     for idx, cand in enumerate(result.items):
         if cand.action == "create":
-            created[idx] = await _create_item(db, cand, entry_id)
+            created[idx] = await _create_item(db, cand, entry_id, dups[idx])
         elif cand.action == "update":
             await _proposal(
                 db,

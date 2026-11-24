@@ -1,0 +1,15 @@
+{
+  "entry_date": "2026-11-18",
+  "entry": "어제 OO연구실 학부연구생으로 들어가기로 확정됐다. 교수님이 다음 달부터 자연어처리 과제를 맡기신다고 했다.",
+  "known_items": [],
+  "open_applications": [],
+  "expect": {
+    "is_relevant": true,
+    "candidates": [
+      {
+        "action": "create",
+        "type": "experience"
+      }
+    ]
+  }
+}

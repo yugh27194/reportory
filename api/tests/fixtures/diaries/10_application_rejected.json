@@ -1,0 +1,24 @@
+{
+  "entry_date": "2026-11-18",
+  "entry": "OO 서포터즈 서류에서 떨어졌다. 아쉽지만 다음 기수에 다시 지원해야겠다.",
+  "known_items": [],
+  "open_applications": [
+    {
+      "id": "dddddddd-0000-4000-8000-000000000001",
+      "title": "OO 서포터즈 5기",
+      "organizer": "OO",
+      "status": "applied",
+      "result_announce_on": "2026-11-18",
+      "activity_start": null,
+      "activity_end": null
+    }
+  ],
+  "expect": {
+    "application_updates": [
+      {
+        "application_id": "dddddddd-0000-4000-8000-000000000001",
+        "to_status": "rejected"
+      }
+    ]
+  }
+}

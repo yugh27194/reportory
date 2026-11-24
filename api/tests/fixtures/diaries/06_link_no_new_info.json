@@ -1,0 +1,28 @@
+{
+  "entry_date": "2026-11-18",
+  "entry": "오늘도 캡스톤 프로젝트 팀 회의를 했다. 다음 주까지 각자 맡은 부분을 정리하기로 했다.",
+  "known_items": [
+    {
+      "id": "cccccccc-0000-4000-8000-000000000001",
+      "type": "project",
+      "title": "캡스톤 디자인 프로젝트",
+      "organization": "OO대학교",
+      "start_date": "2026-09-01",
+      "end_date": null,
+      "is_ongoing": true,
+      "skills": [
+        "React"
+      ]
+    }
+  ],
+  "open_applications": [],
+  "expect": {
+    "candidates": [
+      {
+        "action": "link",
+        "target_item_id": "cccccccc-0000-4000-8000-000000000001"
+      }
+    ],
+    "no_create": true
+  }
+}
