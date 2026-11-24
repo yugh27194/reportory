@@ -49,10 +49,9 @@ async def check_anthropic() -> None:
         print("  → api\\.env의 ANTHROPIC_API_KEY= 뒤에 키를 넣는다.")
         return
     key = s.anthropic_api_key
-    if not key.startswith("sk-ant-api"):
+    if not key.startswith("sk-ant-"):
         print(
-            "  ! API 키는 sk-ant-api03- 로 시작한다. 지금 값은 다른 종류의 토큰으로 보인다.\n"
-            "    platform.claude.com → Settings → API keys → Create Key로 만든 키를 넣는다."
+            "  ! Anthropic 키는 sk-ant- 로 시작한다(sk-ant-api03-, sk-ant-usr- 등). 다른 값이 들어갔는지 본다."
         )
     client = anthropic.AsyncAnthropic(api_key=s.anthropic_api_key, max_retries=0, timeout=30)
     for model in (s.llm_model_extract, s.llm_model_light):
