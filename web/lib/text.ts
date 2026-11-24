@@ -32,3 +32,10 @@ export function formatPeriod(start: string | null, end: string | null, ongoing: 
 export function todayKST(): string {
   return new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Seoul" }).format(new Date());
 }
+
+/** 받침에 따라 조사를 고른다. josa("프로젝트", "이", "가") → "프로젝트가" */
+export function josa(word: string, withBatchim: string, without: string): string {
+  const code = word.charCodeAt(word.length - 1) - 0xac00;
+  const has = code >= 0 && code <= 11171 && code % 28 !== 0;
+  return word + (has ? withBatchim : without);
+}

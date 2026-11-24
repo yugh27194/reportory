@@ -8,31 +8,63 @@ import {
   ExternalLink,
   FileText,
   Home,
-  LayoutGrid,
   LogOut,
   Menu,
   NotebookPen,
   Settings,
   Sparkles,
+  Trees,
   X,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { OliveTree } from "@/components/OliveTree";
 import { Brand } from "@/components/ui";
 import { api, post } from "@/lib/api";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import type { Notification, Profile } from "@/lib/types";
+import type { Growth, Notification, Profile } from "@/lib/types";
 
 const NAV = [
   { href: "/dashboard", label: "홈", icon: Home },
   { href: "/journal", label: "일기", icon: NotebookPen },
-  { href: "/review", label: "확인할 항목", icon: ClipboardCheck, badge: true, onlyWhenPending: true },
-  { href: "/portfolio", label: "포트폴리오", icon: LayoutGrid },
+  {
+    href: "/review",
+    label: "확인할 항목",
+    icon: ClipboardCheck,
+    badge: true,
+    onlyWhenPending: true,
+  },
+  { href: "/portfolio", label: "모아보기", icon: Trees },
   { href: "/documents", label: "문서", icon: FileText },
   { href: "/summaries", label: "요약", icon: Sparkles },
   { href: "/settings", label: "설정", icon: Settings },
 ];
+
+export function useGrowth() {
+  return useQuery({
+    queryKey: ["growth"],
+    queryFn: () => api<Growth>("/me/growth"),
+    staleTime: 60_000,
+  });
+}
+
+/** 화면 뒤에 서 있는 올리브 나무. 모아보기로 들어가면 나무가 클로즈업되며 스킬트리로 바뀐다. */
+function GrowthBackdrop() {
+  const path = usePathname();
+  const { data } = useGrowth();
+  const zoom = path === "/portfolio";
+  return (
+    <div aria-hidden className="pointer-events-none fixed inset-y-0 right-0 left-0 z-0 overflow-hidden lg:left-64">
+      <div
+        className="growth-backdrop absolute right-[-40px] bottom-[-30px] w-[360px] opacity-[.16] sm:w-[440px]"
+        data-zoom={zoom}
+      >
+        <OliveTree level={data?.stage.level ?? 0} sway={false} />
+      </div>
+    </div>
+  );
+}
 
 export function usePendingCount() {
   return useQuery({
@@ -43,7 +75,10 @@ export function usePendingCount() {
 }
 
 export function useMe() {
-  return useQuery({ queryKey: ["me"], queryFn: () => api<{ user_id: string; profile: Profile }>("/me") });
+  return useQuery({
+    queryKey: ["me"],
+    queryFn: () => api<{ user_id: string; profile: Profile }>("/me"),
+  });
 }
 
 function timeAgo(iso: string) {
@@ -96,7 +131,10 @@ function NotificationBell() {
           <div className="flex items-center justify-between border-b border-line px-4 py-3">
             <p className="text-sm font-semibold">알림</p>
             {unread > 0 && (
-              <button className="inline-flex items-center gap-1 text-xs text-deep" onClick={() => readAll.mutate(undefined)}>
+              <button
+                className="inline-flex items-center gap-1 text-xs text-deep"
+                onClick={() => readAll.mutate(undefined)}
+              >
                 <CheckCheck size={14} /> 모두 읽음
               </button>
             )}
@@ -115,7 +153,9 @@ function NotificationBell() {
                     if (n.link) router.push(n.link);
                   }}
                 >
-                  <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${n.read_at ? "bg-transparent" : "bg-accent"}`} />
+                  <span
+                    className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${n.read_at ? "bg-transparent" : "bg-accent"}`}
+                  />
                   <span className="min-w-0">
                     <span className="block">{n.title}</span>
                     <span className="text-xs text-muted">{timeAgo(n.created_at)}</span>
@@ -151,7 +191,10 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
             <Icon size={18} className={active ? "text-accent" : "text-white/50 group-hover:text-accent"} />
             {label}
             {badge && pending > 0 && (
-              <span aria-label={`검토 대기 ${pending}건`} className="ml-auto rounded-full bg-accent px-2 text-xs font-bold text-ink">
+              <span
+                aria-label={`검토 대기 ${pending}건`}
+                className="ml-auto rounded-full bg-accent px-2 text-xs font-bold text-ink"
+              >
                 {pending}
               </span>
             )}
@@ -193,7 +236,9 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
           <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-deep text-sm font-bold text-mint">
             {(p?.display_name ?? "나").slice(0, 1)}
           </span>
-          <span className="min-w-0 flex-1 truncate text-sm text-white/80">{p?.display_name ?? "이름을 정해 보세요"}</span>
+          <span className="min-w-0 flex-1 truncate text-sm text-white/80">
+            {p?.display_name ?? "이름을 정해 보세요"}
+          </span>
           <button onClick={logout} className="text-white/50 hover:text-white" aria-label="로그아웃" title="로그아웃">
             <LogOut size={16} />
           </button>
@@ -207,6 +252,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [drawer, setDrawer] = useState(false);
   return (
     <div className="min-h-screen lg:pl-64">
+      <GrowthBackdrop />
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 bg-ink lg:block">
         <SidebarBody />
       </aside>
@@ -226,7 +272,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       )}
       <header className="sticky top-0 z-20 flex h-14 items-center gap-2 border-b border-line/70 bg-paper/85 px-4 backdrop-blur lg:px-8">
-        <button className="btn-ghost -ml-1 rounded-lg p-2 lg:hidden" onClick={() => setDrawer(true)} aria-label="메뉴 열기">
+        <button
+          className="btn-ghost -ml-1 rounded-lg p-2 lg:hidden"
+          onClick={() => setDrawer(true)}
+          aria-label="메뉴 열기"
+        >
           <Menu size={20} />
         </button>
         <Link href="/dashboard" className="text-lg lg:hidden">
@@ -236,7 +286,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <NotificationBell />
         </div>
       </header>
-      <main className="mx-auto max-w-6xl px-4 py-8 lg:px-8">{children}</main>
+      <main className="relative z-10 mx-auto max-w-6xl px-4 py-8 lg:px-8">{children}</main>
     </div>
   );
 }

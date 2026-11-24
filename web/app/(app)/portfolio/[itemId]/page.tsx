@@ -162,7 +162,7 @@ export default function ItemPage() {
   return (
     <div className="space-y-6">
       <Link href="/portfolio" className="inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
-        <ArrowLeft size={14} /> 포트폴리오
+        <ArrowLeft size={14} /> 모아보기
       </Link>
 
       <header className="card flex flex-wrap items-start gap-4">

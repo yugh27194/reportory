@@ -62,6 +62,11 @@ class Settings(BaseSettings):
     # 문서 PDF용 Chromium. 비우면 Playwright가 설치한 브라우저를 쓴다(`playwright install chromium`).
     pdf_chromium_executable: str = ""
 
+    # 성장 나무 단계 기준(점수 = 승인 항목 x2 + 일기를 쓴 날). 새싹·어린 묘목·묘목·올리브 나무 순.
+    growth_stage_thresholds: str = "1,10,30,60"
+    # 목표 기준선 기본 프리셋: dev_job | biz_job | public_job | grad_school
+    spec_default_preset: str = "dev_job"
+
     cron_secret: str = ""
     allowed_origins: str = "http://localhost:3000"
 

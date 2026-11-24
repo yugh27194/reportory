@@ -3,11 +3,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, ClipboardCheck, FileText, NotebookPen, Rocket, Sparkles } from "lucide-react";
 import Link from "next/link";
-import { useMe } from "@/components/AppShell";
+import { useGrowth, useMe } from "@/components/AppShell";
+import { OliveTree, STAGE_HINTS } from "@/components/OliveTree";
+import { SpecRadar } from "@/components/SpecRadar";
 import { ErrorText } from "@/components/ErrorText";
-import { MarkdownLite, StatCard, TypeIcon } from "@/components/ui";
+import { MarkdownLite, StatCard } from "@/components/ui";
 import { api } from "@/lib/api";
-import { ITEM_TYPE_LABELS, ITEM_TYPE_ORDER, type Stats } from "@/lib/types";
+import { type Stats } from "@/lib/types";
+import { TypeIcon } from "@/components/ui";
 
 function greeting() {
   const h = new Date().getHours();
@@ -19,11 +22,15 @@ function greeting() {
 
 export default function DashboardPage() {
   const me = useMe();
-  const stats = useQuery({ queryKey: ["stats"], queryFn: () => api<Stats>("/me/stats") });
+  const stats = useQuery({
+    queryKey: ["stats"],
+    queryFn: () => api<Stats>("/me/stats"),
+  });
   const s = stats.data;
   const p = me.data?.profile;
   const pending = (s?.pending_proposals ?? 0) + (s?.open_followups ?? 0);
-  const maxType = Math.max(1, ...Object.values(s?.items_by_type ?? {}).map((n) => n ?? 0));
+  const growth = useGrowth();
+  const g = growth.data;
 
   return (
     <div className="space-y-8">
@@ -44,7 +51,10 @@ export default function DashboardPage() {
               <NotebookPen size={16} /> 일기 쓰기
             </Link>
             {pending > 0 && (
-              <Link href="/review" className="btn border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white">
+              <Link
+                href="/review"
+                className="btn border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+              >
                 <ClipboardCheck size={16} /> 확인할 항목 {pending}개
               </Link>
             )}
@@ -53,58 +63,65 @@ export default function DashboardPage() {
       </section>
 
       {p && !p.onboarding_completed_at && (
-        <Link
-          href="/onboarding"
-          className="card card-hover flex items-center gap-4 border-accent/50 bg-mint/60"
-        >
+        <Link href="/onboarding" className="card card-hover flex items-center gap-4 border-accent/50 bg-mint/60">
           <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-deep text-mint">
             <Rocket size={20} />
           </span>
           <div className="min-w-0 flex-1">
             <p className="font-semibold">처음 설정을 마쳐 보세요</p>
-            <p className="text-sm text-muted">목표를 정하고 이력서·GitHub·LinkedIn에서 기록을 가져오면 바로 포트폴리오가 채워진다.</p>
+            <p className="text-sm text-muted">
+              목표를 정하고 이력서·GitHub·LinkedIn에서 기록을 가져오면 바로 포트폴리오가 채워진다.
+            </p>
           </div>
           <ArrowRight className="text-deep" />
         </Link>
       )}
 
       <section className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-        <StatCard label="포트폴리오 항목" value={s?.items_total ?? "–"} hint="승인한 항목" href="/portfolio" tone="ink" />
+        <StatCard label="모은 항목" value={s?.items_total ?? "–"} hint="승인한 항목" href="/portfolio" tone="ink" />
         <StatCard label="확인할 항목" value={pending} hint="고르지 않은 경험 후보" href="/review" tone="mint" />
-        <StatCard label="이번 주 일기" value={s?.entries.this_week ?? "–"} hint={`전체 ${s?.entries.total ?? 0}편`} href="/journal" />
+        <StatCard
+          label="이번 주 일기"
+          value={s?.entries.this_week ?? "–"}
+          hint={`전체 ${s?.entries.total ?? 0}편`}
+          href="/journal"
+        />
         <StatCard label="문서" value={s?.documents ?? "–"} hint={`증빙 ${s?.evidence ?? 0}개`} href="/documents" />
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
-        <section className="card">
-          <div className="mb-4 flex items-center">
-            <h2 className="font-semibold">유형별 항목</h2>
-            <Link href="/portfolio" className="ml-auto text-sm text-deep hover:underline">
-              전체 보기
-            </Link>
+      <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
+        <section className="card grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+          <Link
+            href="/portfolio"
+            className="group relative flex flex-col items-center rounded-2xl bg-gradient-to-b from-mint/60 to-cream/50 p-3"
+          >
+            <OliveTree
+              level={g?.stage.level ?? 0}
+              className="h-56 w-full transition group-hover:scale-[1.03]"
+              title={g?.stage.label}
+            />
+            <p className="mt-1 font-semibold">{g?.stage.label ?? "화분"}</p>
+            <p className="text-center text-xs text-muted">{STAGE_HINTS[g?.stage.level ?? 0]}</p>
+            {g && g.stage.next_at !== null && (
+              <div className="mt-2 w-full max-w-48">
+                <div className="h-1.5 overflow-hidden rounded-full bg-white">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-deep to-accent"
+                    style={{ width: `${Math.round(g.stage.progress * 100)}%` }}
+                  />
+                </div>
+                <p className="mt-1 text-center text-[11px] text-muted">
+                  다음 단계까지 {g.stage.next_at - g.stage.score}점 (항목 1개 2점, 기록한 날 1점)
+                </p>
+              </div>
+            )}
+            <span className="mt-2 text-xs font-medium text-deep group-hover:underline">나무 들여다보기 →</span>
+          </Link>
+          <div>
+            <h2 className="mb-1 font-semibold">스펙 레이더</h2>
+            <p className="mb-2 text-xs text-muted">주홍 선은 목표 기준선, 파란 면은 지금 모은 항목이다.</p>
+            {g && <SpecRadar growth={g} />}
           </div>
-          {s && s.items_total === 0 ? (
-            <p className="text-sm text-muted">아직 승인한 항목이 없다. 일기를 쓰거나 이력서를 가져와 보세요.</p>
-          ) : (
-            <ul className="space-y-3">
-              {ITEM_TYPE_ORDER.map((t) => {
-                const n = s?.items_by_type[t] ?? 0;
-                return (
-                  <li key={t} className="flex items-center gap-3">
-                    <TypeIcon type={t} size="sm" />
-                    <span className="w-16 text-sm">{ITEM_TYPE_LABELS[t]}</span>
-                    <span className="h-2 flex-1 overflow-hidden rounded-full bg-cream">
-                      <span
-                        className="block h-full rounded-full bg-gradient-to-r from-deep to-accent"
-                        style={{ width: `${(n / maxType) * 100}%` }}
-                      />
-                    </span>
-                    <span className="w-6 text-right text-sm font-semibold">{n}</span>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
         </section>
 
         <section className="card flex flex-col">
@@ -134,7 +151,10 @@ export default function DashboardPage() {
       <section className="card">
         <div className="mb-4 flex items-center">
           <h2 className="font-semibold">최근 승인한 항목</h2>
-          <Link href="/documents/new" className="ml-auto inline-flex items-center gap-1 text-sm text-deep hover:underline">
+          <Link
+            href="/documents/new"
+            className="ml-auto inline-flex items-center gap-1 text-sm text-deep hover:underline"
+          >
             <FileText size={14} /> 문서 만들기
           </Link>
         </div>

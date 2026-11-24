@@ -37,7 +37,7 @@ ul.lines li { margin: 2pt 0; }
 {% endblock %}
 {% block body %}
 {% set P = x.profile %}
-{% set ids = x.sections[0]['items'] %}
+{% set ids = x.sections[0]['items'] if x.sections else [] %}
 <div class="page"><div class="cover">
   <div class="top">PROJECT PORTFOLIO</div>
   <div>

@@ -317,3 +317,16 @@ async def test_inline_edits_create_new_version(make_user, mock_llm):
     # 원래 버전은 그대로다.
     v1_again = (await user.client.get(f"/documents/{doc['id']}/versions/1")).json()
     assert v1_again["content"]["x-reportory"]["items"][intern_id]["title"] == "백엔드 인턴"
+
+
+def test_render_old_content_without_profile():
+    """양식을 바꾸기 전에 저장한 내용(profile·written_on 없음)도 렌더링된다."""
+    from app.services.render import render_html
+
+    for fmt in ("resume_ko", "resume_en", "academic_cv", "project_portfolio"):
+        content = {
+            "basics": {"name": "홍길동"},
+            "x-reportory": {"format": fmt, "language": "ko", "sections": [], "items": {}},
+        }
+        html = render_html(fmt, content, title="예전 문서", for_pdf=False)
+        assert "<html" in html

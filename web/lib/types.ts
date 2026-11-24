@@ -314,3 +314,25 @@ export type Stats = {
   recent_items: { id: string; type: ItemType; title: string; organization: string | null; approved_at: string }[];
   latest_summary: PeriodSummary | null;
 };
+
+export type RadarAxis = "experience" | "project" | "activity" | "award" | "certification" | "language_test" | "publication";
+export type SpecPreset = "dev_job" | "biz_job" | "public_job" | "grad_school" | "custom";
+
+export type Growth = {
+  stage: { level: number; key: string; label: string; score: number; next_at: number | null; progress: number };
+  items_total: number;
+  entry_days: number;
+  counts: Partial<Record<ItemType, number>>;
+  radar: {
+    axes: RadarAxis[];
+    values: Record<RadarAxis, number>;
+    target: { preset: SpecPreset; values: Record<RadarAxis, number> };
+  };
+  presets: Record<string, { label: string; values: Record<RadarAxis, number> }>;
+};
+
+export type JournalCalendar = {
+  year: number;
+  years: number[];
+  days: Record<string, { entries: number; chars: number; items: number }>;
+};

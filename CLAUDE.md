@@ -20,6 +20,7 @@
 - Phase 0(기반 구성): 대부분 끝났다. 남은 것: 실제 Supabase 프로젝트 연결, GitHub OAuth 앱 등록, CI 첫 실행 확인.
 - Phase 1(핵심 순환): 일기·추출·검토 큐·후속 질문·항목·병합·공개 프로필 기본이 동작한다. 임베딩(OpenAI) 기반 중복 감지와 KNOWN_ITEMS 유사도 선택까지 들어갔다. 남은 것: 실제 LLM·임베딩 키로 골든 일기 10개 평가(16장, `api/scripts/eval_extraction.py`, 8개 이상 통과).
 - Phase 2(가져오기, 증빙, 문서): 온보딩, 이력서·GitHub·LinkedIn 가져오기, 증빙, 문서 4종·PDF, 요약, 알림, 내보내기, 계정 삭제가 동작한다(테스트는 mock LLM). 남은 것: 실제 LLM 키로 품질 확인, 운영 Supabase Storage 확인.
+- 개선 1차: 문서 양식 재설계와 바로 고치기, 올리브 나무 성장·모아보기 스킬트리, 일기 책장, 스펙 레이더(목표 기준선)가 들어갔다. 다음은 Phase 3 활동 추천(Claude 웹 검색), 그다음 튜토리얼이다.
 - 인계서와 다르게 정한 것은 `docs/decisions.md`에 있다.
 
 ## 명령
@@ -36,4 +37,4 @@
 - LLM 출력은 `api/app/llm/validators.py`를 거친 값만 저장한다.
 - 파일은 `app/storage.py`(`get_storage()`)만 거친다. 업로드는 `app/uploads.py`로 매직 바이트를 확인한다.
 - 새 LLM 목적을 더하면 `app/llm/demo.py`에도 키 없이 쓰는 규칙 기반 처리를 넣는다.
-- UI 색은 `web/app/globals.css`의 팔레트 토큰(ink, deep, accent, mint, cream)만 쓴다.
+- UI 색은 `web/app/globals.css`의 팔레트 토큰(ink, deep, accent, mint, cream)만 쓴다. 예외(레이더 주홍·파랑, 나무·책장 자연색)는 decisions.md에 있다.

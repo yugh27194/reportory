@@ -3,6 +3,7 @@
 import base64
 import io
 import logging
+from datetime import date
 from functools import lru_cache
 from pathlib import Path
 
@@ -65,7 +66,10 @@ def preview_fonts_css() -> str:
 
 
 def render_html(fmt: str, content: dict, *, title: str, for_pdf: bool) -> str:
-    x = content["x-reportory"]
+    # 양식을 바꾸기 전에 만든 문서에는 profile·written_on이 없다. 빈 값으로 채워 그대로 보이게 한다.
+    x = {"interests": [], "sections": [], **content["x-reportory"]}
+    x["profile"] = x.get("profile") or {}
+    x["written_on"] = x.get("written_on") or date.today().isoformat()
     return (
         _env()
         .get_template(f"{fmt}.html.j2")
