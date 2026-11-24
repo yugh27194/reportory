@@ -1,12 +1,25 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Globe, LayoutGrid, List, Paperclip, Plus, Quote, Search, Trees, X } from "lucide-react";
+import {
+  ArrowRight,
+  Globe,
+  LayoutGrid,
+  List,
+  NotebookPen,
+  Paperclip,
+  Plus,
+  Quote,
+  Search,
+  Trees,
+  X,
+} from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { ErrorText } from "@/components/ErrorText";
 import { useGrowth } from "@/components/AppShell";
 import { ItemForm } from "@/components/ItemForm";
+import { OliveTree } from "@/components/OliveTree";
 import { SkillTree } from "@/components/SkillTree";
 import { SpecRadar } from "@/components/SpecRadar";
 import { EmptyState, PageHeader, Tabs, TypeIcon } from "@/components/ui";
@@ -237,12 +250,18 @@ export default function PortfolioPage() {
       {items.isSuccess && all.length === 0 && (
         <EmptyState
           icon={LayoutGrid}
-          title="아직 승인한 항목이 없다"
-          description="일기를 쓰고 검토 큐에서 제안을 승인하거나, 처음 설정에서 이력서·GitHub를 가져와 보세요."
+          illustration={<OliveTree level={0} className="mb-2 h-36" />}
+          title="아직 화분에 싹이 없다"
+          description="일기를 쓰면 AI가 경험 후보를 찾아 준다. 그중 '추가'한 경험이 이 나무의 가지와 잎이 된다. 이미 쓴 이력서나 GitHub가 있다면 한 번에 가져올 수도 있다."
           action={
-            <Link href="/onboarding" className="btn btn-primary">
-              기록 가져오기
-            </Link>
+            <>
+              <Link href="/journal" className="btn btn-primary">
+                <NotebookPen size={15} /> 첫 일기 쓰기
+              </Link>
+              <Link href="/onboarding?step=3" className="btn">
+                이력서·GitHub 가져오기
+              </Link>
+            </>
           }
         />
       )}

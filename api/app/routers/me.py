@@ -1,7 +1,9 @@
 """현재 사용자와 프로필(인계서 9.2절 /me)."""
 
 import re
+from datetime import date, datetime, timedelta
 from typing import Literal
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field, field_validator
@@ -126,6 +128,21 @@ async def onboarding_complete(db: UserDB = Depends(get_user_db)):
     return await ensure_profile(db)
 
 
+def streak_of(days: list[date], today: date) -> int:
+    """오늘(또는 아직 안 썼다면 어제)부터 거꾸로 이어서 기록한 날 수. days는 최신순."""
+    if not days:
+        return 0
+    expected = today if days[0] == today else today - timedelta(days=1)
+    n = 0
+    for d in days:
+        if d == expected:
+            n += 1
+            expected -= timedelta(days=1)
+        elif d < expected:
+            break
+    return n
+
+
 @router.get("/me/stats")
 async def stats(db: UserDB = Depends(get_user_db)):
     """홈 화면 숫자: 유형별 승인 항목, 검토 대기, 일기 수, 최근 항목, 최근 요약."""
@@ -149,7 +166,27 @@ async def stats(db: UserDB = Depends(get_user_db)):
         """select id, period, period_start, period_end, summary_md from period_summaries
            where user_id = :user_id order by created_at desc limit 1"""
     )
+    today = datetime.now(ZoneInfo("Asia/Seoul")).date()
+    days = [
+        r["entry_date"]
+        for r in await db.all(
+            """select distinct entry_date from entries
+               where user_id = :user_id and entry_date between :since and :today
+               order by entry_date desc""",
+            since=today - timedelta(days=400),
+            today=today,
+        )
+    ]
     return {
+        "streak": streak_of(days, today),
+        "wrote_today": bool(days) and days[0] == today,
+        "applications": await db.scalar(
+            "select count(*) from applications where user_id = :user_id"
+        ),
+        "recommendations_seen": await db.scalar(
+            """select count(*) from recommendations
+               where user_id = :user_id and feedback is not null"""
+        ),
         "items_by_type": {r["type"]: r["n"] for r in by_type},
         "items_total": sum(r["n"] for r in by_type),
         "pending_proposals": await db.scalar(

@@ -7,6 +7,7 @@ import {
   ClipboardCheck,
   Compass,
   ExternalLink,
+  Flame,
   FileText,
   Home,
   LogOut,
@@ -26,24 +27,52 @@ import { TourProvider } from "@/components/Tour";
 import { Brand } from "@/components/ui";
 import { api, post } from "@/lib/api";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import type { Growth, Notification, Profile } from "@/lib/types";
+import type { Growth, Notification, Profile, Stats } from "@/lib/types";
 
-const NAV = [
+type NavItem = {
+  href: string;
+  label: string;
+  icon: typeof Home;
+  badge?: boolean;
+  onlyWhenPending?: boolean;
+};
+
+/** 메뉴를 쓰임새로 묶는다: 기록하고 → 쌓인 것을 보고 → 기회를 잡고 → 문서로 꺼낸다. */
+const NAV_GROUPS: { label: string | null; items: NavItem[] }[] = [
+  {
+    label: null,
+    items: [
+      { href: "/dashboard", label: "홈", icon: Home },
+      { href: "/journal", label: "일기", icon: NotebookPen },
+      { href: "/review", label: "확인할 항목", icon: ClipboardCheck, badge: true, onlyWhenPending: true },
+    ],
+  },
+  {
+    label: "돌아보기",
+    items: [
+      { href: "/portfolio", label: "모아보기", icon: Trees },
+      { href: "/summaries", label: "기록 요약", icon: Sparkles },
+    ],
+  },
+  {
+    label: "기회 찾기",
+    items: [
+      { href: "/recommendations", label: "활동 추천", icon: Compass },
+      { href: "/applications", label: "지원 관리", icon: Send },
+    ],
+  },
+  {
+    label: "꺼내 쓰기",
+    items: [{ href: "/documents", label: "문서", icon: FileText }],
+  },
+];
+
+/** 휴대폰 아래 탭. 나머지 메뉴는 '전체'(서랍)에 있다. */
+const TABS: NavItem[] = [
   { href: "/dashboard", label: "홈", icon: Home },
   { href: "/journal", label: "일기", icon: NotebookPen },
-  {
-    href: "/review",
-    label: "확인할 항목",
-    icon: ClipboardCheck,
-    badge: true,
-    onlyWhenPending: true,
-  },
   { href: "/portfolio", label: "모아보기", icon: Trees },
-  { href: "/recommendations", label: "활동 추천", icon: Compass },
-  { href: "/applications", label: "지원 관리", icon: Send },
-  { href: "/documents", label: "문서", icon: FileText },
-  { href: "/summaries", label: "요약", icon: Sparkles },
-  { href: "/settings", label: "설정", icon: Settings },
+  { href: "/recommendations", label: "추천", icon: Compass },
 ];
 
 export function useGrowth() {
@@ -180,32 +209,85 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const { data } = usePendingCount();
   const pending = (data?.proposals ?? 0) + (data?.followups ?? 0);
   return (
-    <nav className="space-y-0.5">
-      {NAV.map(({ href, label, icon: Icon, badge, onlyWhenPending }) => {
+    <nav className="space-y-4">
+      {NAV_GROUPS.map((group, gi) => (
+        <div key={gi} className="space-y-0.5">
+          {group.label && (
+            <p className="px-3 pb-1 text-[11px] font-semibold tracking-wider text-white/35">{group.label}</p>
+          )}
+          {group.items.map(({ href, label, icon: Icon, badge, onlyWhenPending }) => {
+            const active = path === href || path.startsWith(`${href}/`);
+            if (onlyWhenPending && pending === 0 && !active) return null;
+            return (
+              <Link
+                key={href}
+                href={href}
+                onClick={onNavigate}
+                className={`group flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition ${
+                  active ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5 hover:text-white"
+                }`}
+              >
+                <Icon size={18} className={active ? "text-accent" : "text-white/50 group-hover:text-accent"} />
+                {label}
+                {badge && pending > 0 && (
+                  <span
+                    aria-label={`검토 대기 ${pending}건`}
+                    className="ml-auto rounded-full bg-accent px-2 text-xs font-bold text-ink"
+                  >
+                    {pending}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
+        </div>
+      ))}
+    </nav>
+  );
+}
+
+function StreakChip() {
+  const { data } = useQuery({ queryKey: ["stats"], queryFn: () => api<Stats>("/me/stats") });
+  if (!data) return null;
+  const n = data.streak ?? 0;
+  return (
+    <Link
+      href="/journal"
+      title={data.wrote_today ? "오늘도 기록했다" : "오늘 기록하면 이어진다"}
+      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition ${
+        n > 0 ? "bg-ink text-white hover:bg-ink-2" : "bg-white text-muted ring-1 ring-line hover:text-ink"
+      }`}
+    >
+      <Flame size={14} className={n > 0 ? (data.wrote_today ? "text-accent" : "text-white/50") : ""} />
+      {n > 0 ? `${n}일째 기록 중` : "오늘 첫 기록"}
+    </Link>
+  );
+}
+
+function BottomTabs({ onMore }: { onMore: () => void }) {
+  const path = usePathname();
+  return (
+    <nav
+      className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-line bg-paper/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
+      aria-label="주요 메뉴"
+    >
+      {TABS.map(({ href, label, icon: Icon }) => {
         const active = path === href || path.startsWith(`${href}/`);
-        if (onlyWhenPending && pending === 0 && !active) return null;
         return (
           <Link
             key={href}
             href={href}
-            onClick={onNavigate}
-            className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
-              active ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5 hover:text-white"
-            }`}
+            className={`flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium ${active ? "text-deep" : "text-muted"}`}
           >
-            <Icon size={18} className={active ? "text-accent" : "text-white/50 group-hover:text-accent"} />
+            <Icon size={20} className={active ? "text-deep" : ""} />
             {label}
-            {badge && pending > 0 && (
-              <span
-                aria-label={`검토 대기 ${pending}건`}
-                className="ml-auto rounded-full bg-accent px-2 text-xs font-bold text-ink"
-              >
-                {pending}
-              </span>
-            )}
           </Link>
         );
       })}
+      <button className="flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium text-muted" onClick={onMore}>
+        <Menu size={20} />
+        전체
+      </button>
     </nav>
   );
 }
@@ -244,6 +326,15 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
           <span className="min-w-0 flex-1 truncate text-sm text-white/80">
             {p?.display_name ?? "이름을 정해 보세요"}
           </span>
+          <Link
+            href="/settings"
+            onClick={onNavigate}
+            className="text-white/50 hover:text-white"
+            aria-label="설정"
+            title="설정"
+          >
+            <Settings size={16} />
+          </Link>
           <button onClick={logout} className="text-white/50 hover:text-white" aria-label="로그아웃" title="로그아웃">
             <LogOut size={16} />
           </button>
@@ -290,11 +381,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Link href="/dashboard" className="text-lg lg:hidden">
             <Brand />
           </Link>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
+            <StreakChip />
             <NotificationBell />
           </div>
         </header>
-        <main className="relative z-10 mx-auto max-w-6xl px-4 py-8 lg:px-8">{children}</main>
+        <main className="relative z-10 mx-auto max-w-6xl px-4 pt-8 pb-28 lg:px-8 lg:pb-12">{children}</main>
+        <BottomTabs onMore={() => setDrawer(true)} />
       </div>
     </TourProvider>
   );

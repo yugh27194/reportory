@@ -309,6 +309,10 @@ export type PeriodSummary = {
 };
 
 export type Stats = {
+  streak: number;
+  wrote_today: boolean;
+  applications: number;
+  recommendations_seen: number;
   items_by_type: Partial<Record<ItemType, number>>;
   items_total: number;
   pending_proposals: number;

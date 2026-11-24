@@ -27,7 +27,7 @@ export default function SummariesPage() {
     <div>
       <PageHeader
         eyebrow="Summaries"
-        title="돌아보기"
+        title="기록 요약"
         description="하루 요약은 매일 밤, 주간 요약은 일요일 밤, 월간 요약은 그달 마지막 날 밤에 만들어진다."
         actions={
           <Tabs
@@ -43,7 +43,16 @@ export default function SummariesPage() {
       />
       <ErrorText error={list.error} />
       {list.isSuccess && list.data.summaries.length === 0 && (
-        <EmptyState icon={Sparkles} title="아직 요약이 없다" description="일기를 쓰고 분석이 끝나면 그 기간의 요약이 여기에 쌓인다." />
+        <EmptyState
+          icon={Sparkles}
+          title="아직 도착한 요약이 없다"
+          description="일기를 쓰면 그날 밤에 하루 요약, 일요일 밤에 한 주 요약, 월 마지막 날 밤에 한 달 요약이 이곳에 도착한다."
+          action={
+            <Link href="/journal" className="btn btn-primary">
+              오늘 기록하기
+            </Link>
+          }
+        />
       )}
       <ol className="relative space-y-6 border-l-2 border-mint pl-6">
         {list.data?.summaries.map((s) => (

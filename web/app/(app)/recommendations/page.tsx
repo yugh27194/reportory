@@ -257,7 +257,17 @@ export default function RecommendationsPage() {
             <EmptyState
               icon={Compass}
               title="아직 추천할 공고가 없다"
-              description="공고는 매일 새벽 3시에 모이고, 4시에 추천을 고른다. 지금 바로 보려면 찾은 공고 주소를 직접 넣거나, 관심 분야를 설정에서 적어 두고 '추천 다시 고르기'를 누른다."
+              description="공고는 매일 새벽에 모이고, 내 관심 분야와 모은 경험에 맞춰 추천을 고른다. 관심 분야를 적어 두면 첫 추천이 더 잘 맞는다. 눈여겨본 공고가 있다면 오른쪽에 주소를 바로 넣어 보세요."
+              action={
+                <>
+                  <Link href="/settings" className="btn btn-primary">
+                    관심 분야 적기
+                  </Link>
+                  <button className="btn" disabled={busy || refresh.isPending} onClick={() => refresh.mutate()}>
+                    <RefreshCw size={14} /> 추천 다시 고르기
+                  </button>
+                </>
+              }
             />
           )}
           <div className="grid gap-4 xl:grid-cols-2">

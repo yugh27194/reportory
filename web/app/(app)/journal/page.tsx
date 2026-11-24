@@ -218,7 +218,7 @@ function Bookshelf({
     };
   });
   return (
-    <div className="relative px-2 pt-6 sm:px-6">
+    <div className="relative px-2 pt-6 [--book:0.72] sm:px-6 sm:[--book:1]">
       <div className="flex items-end gap-1.5 overflow-x-auto px-3 pb-0 [scrollbar-width:thin] sm:justify-center sm:gap-2">
         {perMonth.map((b, i) => {
           const width = b.future ? 26 : 30 + Math.min(42, b.days * 3);
@@ -235,13 +235,13 @@ function Bookshelf({
               className={`group relative shrink-0 transition-transform duration-300 ${
                 isOpen ? "-translate-y-4" : "hover:-translate-y-2"
               } disabled:cursor-default`}
-              style={{ width, height }}
+              style={{ width: `calc(${width}px * var(--book))`, height: `calc(${height}px * var(--book))` }}
             >
               {/* 책 윗면(2.5D) */}
               <span
                 className="absolute -top-2 left-1 h-2 origin-bottom-left"
                 style={{
-                  width: width - 2,
+                  width: "calc(100% - 2px)",
                   background: b.future ? "transparent" : "#fff7e6",
                   transform: "skewX(-40deg)",
                   boxShadow: b.future ? "none" : "inset 0 -1px 0 rgba(14,27,42,.15)",

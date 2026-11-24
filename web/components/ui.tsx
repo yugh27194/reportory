@@ -95,20 +95,25 @@ export function EmptyState({
   title,
   description,
   action,
+  illustration,
 }: {
   icon: LucideIcon;
   title: string;
   description?: string;
   action?: React.ReactNode;
+  /** 아이콘 대신 보여 줄 그림(예: 화분) */
+  illustration?: React.ReactNode;
 }) {
   return (
     <div className="flex flex-col items-center rounded-2xl border border-dashed border-line bg-white/60 px-6 py-12 text-center">
-      <span className="mb-3 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-mint text-deep">
-        <Icon size={22} aria-hidden />
-      </span>
-      <p className="font-semibold">{title}</p>
-      {description && <p className="mt-1 max-w-sm text-sm text-muted">{description}</p>}
-      {action && <div className="mt-4">{action}</div>}
+      {illustration ?? (
+        <span className="mb-3 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-mint text-deep">
+          <Icon size={22} aria-hidden />
+        </span>
+      )}
+      <p className="text-lg font-semibold">{title}</p>
+      {description && <p className="mt-1 max-w-md text-sm leading-relaxed text-muted">{description}</p>}
+      {action && <div className="mt-5 flex flex-wrap justify-center gap-2">{action}</div>}
     </div>
   );
 }

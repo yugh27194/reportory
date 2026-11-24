@@ -62,3 +62,16 @@ async def test_calendar_is_per_user(make_user, mock_llm):
     await write_and_extract(a, entry_date="2026-05-02")
     cal = (await b.client.get("/journal/calendar?year=2026")).json()
     assert cal["days"] == {}
+
+
+def test_streak_counts_back_from_today_or_yesterday():
+    from datetime import date, timedelta
+
+    from app.routers.me import streak_of
+
+    t = date(2026, 11, 25)
+    d = lambda n: t - timedelta(days=n)  # noqa: E731
+    assert streak_of([], t) == 0
+    assert streak_of([d(0), d(1), d(2), d(4)], t) == 3
+    assert streak_of([d(1), d(2)], t) == 2  # 오늘 아직 안 썼어도 어제까지 이어지면 유지
+    assert streak_of([d(2), d(3)], t) == 0
