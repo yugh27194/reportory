@@ -260,3 +260,14 @@ def reco_reason(variables: dict[str, Any]) -> dict[str, Any]:
 
 HANDLERS["normalize_opportunity"] = normalize_opportunity
 HANDLERS["reco_reason"] = reco_reason
+
+
+def activity_summary(variables: dict[str, Any]) -> dict[str, Any]:
+    """규칙 기반 활동 요약: 근거 인용을 날짜순으로 이어 붙인다(새 사실을 만들지 않는다)."""
+    quotes = [str(q.get("quote", "")).strip().rstrip(".") for q in variables.get("QUOTES") or []]
+    quotes = [q for q in quotes if q][:5]
+    text = " ".join(f"{q}." for q in quotes)
+    return {"summary": text, "role": None, "metrics": [], "skills": skills_in(" ".join(quotes))}
+
+
+HANDLERS["activity_summary"] = activity_summary

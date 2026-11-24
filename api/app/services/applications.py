@@ -127,6 +127,9 @@ async def transition(
         if start is None or start <= today:
             return await transition(db, app_id, "active", source="system", today=today)
     if to_status == "completed" and app["item_id"]:
+        from app.services.jobs import enqueue
+
+        await enqueue(db, "activity_summary", {"item_id": str(app["item_id"])})
         await db.execute(
             """update items set is_ongoing = false,
                  end_date = coalesce(end_date, :d) where id = :item and user_id = :user_id""",

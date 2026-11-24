@@ -391,3 +391,78 @@ async def test_diary_result_detection_accepts_application(make_user, mock_llm):
     detail = (await user.client.get(f"/applications/{app['id']}")).json()
     assert detail["status"] == "active" and detail["item_id"]
     assert any(e["to_status"] == "accepted" and e["source"] == "diary" for e in detail["events"])
+
+
+async def test_activity_summary_proposal_on_completion(make_user, mock_llm):
+    """지원 완료 → 근거 인용으로 요약 제안. 근거에 없는 숫자 문장·기술은 빠지고, 승인하면 요약이 바뀐다."""
+    mock_llm.on("extract_entry", hackathon_extraction)
+    user = await make_user()
+    await write_and_extract(user)
+    for p in await pending(user):
+        await user.client.post(f"/proposals/{p['id']}/accept")
+    items = (await user.client.get("/items?status=approved")).json()["items"]
+    project = next(i for i in items if i["type"] == "project")
+
+    app = (
+        await user.client.post(
+            "/applications", json={"title": "OO 해커톤", "category": "hackathon"}
+        )
+    ).json()
+    for to in ("applied", "accepted"):
+        await user.client.post(f"/applications/{app['id']}/transition", json={"to_status": to})
+    # 합격으로 생긴 항목 대신, 근거가 있는 기존 항목을 이 지원에 잇는다.
+    from tests.conftest import drain_jobs as _drain
+
+    await _drain()
+
+    def summary(v):
+        assert v["QUOTES"] and v["QUOTES"][0]["quote"]
+        return {
+            "summary": "팀원 3명과 FastAPI로 백엔드를 맡았다. 참가자 500명 중 1등을 했다.",
+            "role": "백엔드",
+            "metrics": [{"name": "팀원", "value": "3명"}, {"name": "참가자", "value": "500명"}],
+            "skills": ["FastAPI", "Kubernetes"],
+        }
+
+    mock_llm.on("activity_summary", summary)
+    r = await user.client.post(f"/items/{project['id']}/summarize")
+    assert r.status_code == 202
+    await _drain()
+    props = [
+        p
+        for p in await pending(user)
+        if p["kind"] == "update_item" and p["item_id"] == project["id"]
+    ]
+    assert len(props) == 1
+    patch = props[0]["payload"]["patch"]
+    assert patch["summary_replace"] == "팀원 3명과 FastAPI로 백엔드를 맡았다."
+    assert [m["value"] for m in patch["metrics_add"]] == ["3명"]
+    assert patch["skills_add"] == ["FastAPI"]
+    # 다시 돌려도 대기 제안은 하나다.
+    await user.client.post(f"/items/{project['id']}/summarize")
+    await _drain()
+    props = [
+        p
+        for p in await pending(user)
+        if p["kind"] == "update_item" and p["item_id"] == project["id"]
+    ]
+    assert len(props) == 1
+    await user.client.post(f"/proposals/{props[0]['id']}/accept")
+    item = (await user.client.get(f"/items/{project['id']}")).json()
+    assert item["summary"] == "팀원 3명과 FastAPI로 백엔드를 맡았다."
+    notes = (await user.client.get("/notifications")).json()["notifications"]
+    assert any("활동 요약" in n["title"] for n in notes)
+
+    # 완료 전이는 활동 요약 작업을 넣는다(근거가 없으면 조용히 건너뛴다).
+    done = await user.client.post(
+        f"/applications/{app['id']}/transition", json={"to_status": "completed"}
+    )
+    assert done.json()["status"] == "completed"
+    assert await _drain() >= 1
+
+
+async def test_summarize_needs_sources(make_user):
+    user = await make_user()
+    item = (await user.client.post("/items", json={"type": "activity", "title": "봉사"})).json()
+    r = await user.client.post(f"/items/{item['id']}/summarize")
+    assert r.status_code == 422

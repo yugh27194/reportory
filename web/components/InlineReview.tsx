@@ -45,7 +45,7 @@ export function ProposalRow({ p }: { p: Proposal }) {
   });
   const reject = useMutation({ mutationFn: () => post(`/proposals/${p.id}/reject`), onSuccess: refresh });
   const busy = accept.isPending || reject.isPending;
-  const patch = (p.payload.patch ?? {}) as { summary_append?: string; skills_add?: string[] };
+  const patch = (p.payload.patch ?? {}) as { summary_append?: string; summary_replace?: string; skills_add?: string[] };
   const isNew = p.kind === "create_item";
 
   return (
@@ -67,7 +67,7 @@ export function ProposalRow({ p }: { p: Proposal }) {
               title="눌러서 제목을 고칠 수 있다"
             />
           ) : (
-            <p className="text-sm font-medium">{patch.summary_append || (p.kind === "link_entry" ? "이 일기를 근거로 연결한다." : "")}</p>
+            <p className="text-sm font-medium">{patch.summary_append || patch.summary_replace || (p.kind === "link_entry" ? "이 일기를 근거로 연결한다." : "")}</p>
           )}
           {isNew && item && (
             <p className="text-xs text-muted">

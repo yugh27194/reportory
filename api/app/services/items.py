@@ -73,7 +73,11 @@ def append_summary(current: str, addition: str) -> str:
 async def apply_patch(db: UserDB, item_id: UUID, patch: dict[str, Any]) -> None:
     """update_item 제안의 patch를 적용한다(8.2절 규칙)."""
     item = await get_item(db, item_id, statuses=("approved", "proposed"))
-    summary = append_summary(item["summary"], patch.get("summary_append", ""))
+    if patch.get("summary_replace"):
+        # 활동 요약 제안: 근거를 모아 다시 쓴 요약으로 바꾼다.
+        summary = str(patch["summary_replace"]).strip()
+    else:
+        summary = append_summary(item["summary"], patch.get("summary_append", ""))
     metrics = merge_metrics(item["metrics"], patch.get("metrics_add") or [])
     details = {**item["details"], **filter_details(item["type"], patch.get("details_patch") or {})}
     end_date = patch.get("end_date") or item["end_date"]

@@ -35,6 +35,7 @@ class PatchEdit(BaseModel):
     """update_item 제안의 patch를 수정할 때 받는 값."""
 
     summary_append: str = ""
+    summary_replace: str | None = None
     end_date: date | None = None
     is_ongoing: bool | None = None
     role: str | None = None

@@ -21,6 +21,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { ErrorText } from "@/components/ErrorText";
 import { ItemForm, type ItemFormValues } from "@/components/ItemForm";
+import { SummaryProposal } from "@/components/SummaryProposal";
 import { Spinner, TypeIcon } from "@/components/ui";
 import { api, del, patch, post, upload } from "@/lib/api";
 import { formatPeriod } from "@/lib/text";
@@ -219,6 +220,7 @@ export default function ItemPage() {
               ) : (
                 <p className="text-sm text-muted">요약이 아직 없다. 편집에서 쓰거나, 관련 일기를 쓰면 제안으로 채워진다.</p>
               )}
+              <SummaryProposal itemId={d.id} hasSources={d.sources.some((x) => !!x.quote)} />
               {d.metrics.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {d.metrics.map((m) => (

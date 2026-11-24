@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from app.db import UserDB
 from app.jobs import (
     account,
+    activity_summary,
     answer_followup,
     embed_item,
     extract_entry,
@@ -53,4 +54,5 @@ HANDLERS: dict[str, JobSpec] = {
     "collect_opportunities": JobSpec(opportunities.collect, system=True),
     "fetch_opportunity_url": JobSpec(opportunities.fetch_url),
     "score_recommendations": JobSpec(recommendations.run),
+    "activity_summary": JobSpec(activity_summary.run),
 }

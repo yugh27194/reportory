@@ -116,6 +116,7 @@ function Changes({
   if (p.kind === "update_item" && item) {
     const patch = p.payload.patch as {
       summary_append?: string;
+      summary_replace?: string;
       end_date?: string | null;
       role?: string | null;
       metrics_add?: Metric[];
@@ -125,6 +126,7 @@ function Changes({
     return (
       <div className="space-y-1.5">
         {patch.summary_append && <Field label="요약 추가" after={patch.summary_append} />}
+        {patch.summary_replace && <Field label="새 요약" before={item.summary} after={patch.summary_replace} />}
         {patch.role && <Field label="역할" before={item.role ?? ""} after={patch.role} />}
         {patch.end_date && <Field label="종료일" before={item.end_date ?? ""} after={patch.end_date} />}
         {!!patch.metrics_add?.length && (

@@ -8,9 +8,10 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from app.db import UserDB, as_json, get_user_db
+from app.errors import ApiError
 from app.llm.schemas import ItemType, Metric
 from app.services.items import ITEM_COLUMNS, filter_details, get_item, item_detail, merge_items
-from app.services.jobs import enqueue
+from app.services.jobs import check_daily_limit, enqueue
 from app.services.proposals import _check_dates
 from app.services.skills import link_skills, normalize_skill
 
@@ -193,3 +194,18 @@ class MergeIn(BaseModel):
 async def merge(body: MergeIn, db: UserDB = Depends(get_user_db)):
     await merge_items(db, body.keep_item_id, body.merge_item_ids)
     return await item_detail(db, body.keep_item_id)
+
+
+@router.post("/items/{item_id}/summarize", status_code=202)
+async def summarize(item_id: UUID, db: UserDB = Depends(get_user_db)):
+    """근거 인용을 모아 요약을 다시 쓰는 제안을 만든다(인계서 10.4절 '요약 다시 쓰기')."""
+    await get_item(db, item_id, statuses=("approved",))
+    has_sources = await db.scalar(
+        """select 1 from item_sources where user_id = :user_id and item_id = :id
+             and quote is not null limit 1""",
+        id=item_id,
+    )
+    if not has_sources:
+        raise ApiError(422, "no_sources", "요약할 근거(일기 인용)가 아직 없다.")
+    await check_daily_limit(db, ["activity_summary"], 20)
+    return {"job_id": await enqueue(db, "activity_summary", {"item_id": str(item_id)})}
