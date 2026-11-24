@@ -55,3 +55,10 @@ async def test_approved_item_gets_embedding(make_user, pg, openai_embeddings):
     )
     assert has
     assert "임베딩 시험" in openai_embeddings[0][1]["input"][0]
+
+
+async def test_openai_without_key_skips_embeddings(monkeypatch):
+    settings = get_settings()
+    monkeypatch.setattr(settings, "embedding_provider", "openai")
+    monkeypatch.setattr(settings, "openai_api_key", "")
+    assert await embeddings.embed(["a"]) is None

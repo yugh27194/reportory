@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     supabase_jwks_url: str = ""
     jwt_audience: str = "authenticated"
 
-    llm_provider: str = "anthropic"  # anthropic | mock
+    llm_provider: str = "anthropic"  # anthropic | demo(키 없이 규칙 기반) | mock(테스트)
     anthropic_api_key: str = ""
     openai_api_key: str = ""  # 임베딩(OpenAI) 전용
     llm_model_extract: str = "claude-sonnet-5-5"

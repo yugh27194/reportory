@@ -241,13 +241,20 @@ def get_llm() -> LLMClient:
     if _client is None:
         s = get_settings()
         provider: Provider
+        models = {"extract": s.llm_model_extract, "light": s.llm_model_light}
         if s.llm_provider == "mock":
             provider = MockProvider()
+        elif s.llm_provider == "demo":
+            from app.llm.demo import HANDLERS
+
+            provider = MockProvider(HANDLERS)
+            provider.name = "demo"
+            models = {"extract": "rule-based-demo", "light": "rule-based-demo"}
         elif s.llm_provider == "anthropic":
             provider = AnthropicProvider(s.anthropic_api_key)
         else:
             raise ValueError(f"지원하지 않는 LLM_PROVIDER: {s.llm_provider}")
-        _client = LLMClient(provider, {"extract": s.llm_model_extract, "light": s.llm_model_light})
+        _client = LLMClient(provider, models)
     return _client
 
 

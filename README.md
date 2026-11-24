@@ -60,7 +60,9 @@ cd api && uv run python -m app.worker
 cd web && pnpm install && pnpm dev
 ```
 
-http://localhost:3000 에서 로그인한다. 로컬 Supabase가 보낸 로그인 메일은 http://localhost:54324 (Inbucket)에서 확인한다.
+http://localhost:3000 에서 로그인한다.
+
+Anthropic 키가 아직 없으면 `api/.env`에 `LLM_PROVIDER=demo`를 넣는다. 외부 API 없이 규칙으로 후보를 만드는 데모 분석이라 품질은 낮지만, 전체 흐름(일기 → 검토 → 포트폴리오)을 확인할 수 있다. `OPENAI_API_KEY`가 비어 있으면 임베딩 없이 동작한다. 로컬 Supabase가 보낸 로그인 메일은 http://localhost:54324 (Inbucket)에서 확인한다.
 
 ## 테스트
 

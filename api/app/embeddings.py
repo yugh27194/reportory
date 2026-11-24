@@ -4,9 +4,13 @@ EMBEDDING_PROVIDER가 비어 있으면 None을 돌려주고, 호출하는 쪽은
 입력 텍스트는 로그에 남기지 않는다.
 """
 
+import logging
+
 import httpx
 
 from app.config import get_settings
+
+log = logging.getLogger("reportory.embeddings")
 
 OPENAI_URL = "https://api.openai.com/v1/embeddings"
 
@@ -30,7 +34,9 @@ async def embed(texts: list[str]) -> list[list[float]] | None:
     if settings.embedding_provider != "openai":
         raise EmbeddingError(f"지원하지 않는 EMBEDDING_PROVIDER: {settings.embedding_provider}")
     if not settings.openai_api_key:
-        raise EmbeddingError("OPENAI_API_KEY가 설정되지 않았다.")
+        # 키가 없으면 임베딩 없이 동작한다. 설정 누락을 알 수 있게 경고만 남긴다.
+        log.warning("EMBEDDING_PROVIDER=openai but OPENAI_API_KEY is empty; skipping embeddings")
+        return None
     body = {
         "model": settings.embedding_model,
         "input": texts,
