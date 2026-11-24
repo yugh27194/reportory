@@ -379,3 +379,17 @@ async def test_merge_duplicate_proposal_into_existing_item(make_user, mock_llm, 
     )
     assert status == "rejected"
     assert all(p["id"] != dup["id"] for p in await pending(user))
+
+
+async def test_stats_and_onboarding(make_user, mock_llm):
+    mock_llm.on("extract_entry", hackathon_extraction)
+    user = await make_user()
+    await write_and_extract(user)
+    project = next(p for p in await pending(user) if p["item"]["type"] == "project")
+    await user.client.post(f"/proposals/{project['id']}/accept")
+    s = (await user.client.get("/me/stats")).json()
+    assert s["items_by_type"] == {"project": 1} and s["items_total"] == 1
+    assert s["pending_proposals"] == 1 and s["open_followups"] == 1
+    assert s["entries"]["total"] == 1 and s["recent_items"][0]["title"] == "OO 해커톤 프로젝트"
+    p = (await user.client.post("/me/onboarding/complete")).json()
+    assert p["onboarding_completed_at"] is not None

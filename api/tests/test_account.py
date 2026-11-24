@@ -137,3 +137,31 @@ async def test_delete_account_uses_admin_api_when_configured(make_user, monkeypa
         assert calls == [("DELETE", f"/auth/v1/admin/users/{user.id}")]
     finally:
         account.set_transport(None)
+
+
+async def test_demo_period_summary_keeps_lines(make_user, monkeypatch, anon):
+    from app.config import get_settings
+    from app.llm import client as llm_client
+
+    monkeypatch.setattr(get_settings(), "llm_provider", "demo")
+    llm_client.set_llm(None)
+    try:
+        user = await make_user()
+        start, _ = week_range(date.today())
+        await user.client.post(
+            "/entries",
+            json={
+                "entry_date": start.isoformat(),
+                "body": "오늘 OO 해커톤에서 팀원 3명과 FastAPI로 백엔드를 맡았다.",
+            },
+        )
+        await drain_jobs()
+        for p in await pending(user):
+            await user.client.post(f"/proposals/{p['id']}/accept")
+        await anon.post("/internal/cron/weekly_summary", headers=CRON)
+        await drain_jobs()
+        s = (await user.client.get("/summaries")).json()["summaries"][0]
+        assert s["summary_md"].startswith("- ")
+        assert "항목 1개를 승인했다" in s["summary_md"]
+    finally:
+        llm_client.set_llm(None)

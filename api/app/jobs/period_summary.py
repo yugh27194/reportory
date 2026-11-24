@@ -57,7 +57,13 @@ async def run(db: UserDB, payload: dict) -> dict:
         s=start,
         e=end,
     )
-    source = "\n".join([e["summary"] for e in entries] + [c["title"] for c in changes])
+    # 검증 기준: 일기 요약, 승인 항목 제목, 날짜, 승인 개수(서버가 센 값).
+    source = "\n".join(
+        [e["summary"] for e in entries]
+        + [c["title"] for c in changes]
+        + [e["date"].strftime("%m/%d %Y-%m-%d") for e in entries]
+        + [str(len(changes)), str(len(entries))]
+    )
     result: PeriodSummary | None = None
     if get_settings().llm_provider != "demo":
         try:
@@ -80,7 +86,15 @@ async def run(db: UserDB, payload: dict) -> dict:
             result = None
     if result is None:
         result = fallback_summary(entries, changes)
-    summary_md, _ = drop_unsupported_sentences(result.summary_md, source)
+    # 줄마다(목록 항목마다) 따로 검증해, 근거 없는 숫자가 든 줄만 지운다.
+    kept = []
+    for line in result.summary_md.splitlines():
+        stripped = line.strip()
+        bullet = stripped.startswith(("- ", "* "))
+        text, _ = drop_unsupported_sentences(stripped[2:] if bullet else stripped, source)
+        if text.strip():
+            kept.append(f"- {text}" if bullet else text)
+    summary_md = "\n".join(kept)
     allowed = {c["id"] for c in changes}
     highlights = [
         {"item_id": str(h.item_id), "text": h.text}

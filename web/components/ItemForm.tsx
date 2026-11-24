@@ -6,6 +6,7 @@ import { ITEM_TYPE_LABELS, ITEM_TYPE_ORDER, type Item, type ItemType } from "@/l
 export type ItemFormValues = {
   type: ItemType;
   title: string;
+  title_en: string | null;
   organization: string | null;
   role: string | null;
   start_date: string | null;
@@ -32,6 +33,7 @@ export function ItemForm({
   const [v, setV] = useState({
     type: (initial?.type ?? "project") as ItemType,
     title: initial?.title ?? "",
+    title_en: initial?.title_en ?? "",
     organization: initial?.organization ?? "",
     role: initial?.role ?? "",
     start_date: initial?.start_date ?? "",
@@ -51,6 +53,7 @@ export function ItemForm({
         onSubmit({
           type: v.type,
           title: v.title.trim(),
+          title_en: v.title_en.trim() || null,
           organization: v.organization.trim() || null,
           role: v.role.trim() || null,
           start_date: v.start_date || null,
@@ -80,6 +83,10 @@ export function ItemForm({
       <label className={allowTypeChange ? "" : "sm:col-span-2"}>
         <span className="label">제목</span>
         <input className="input" required maxLength={200} value={v.title} onChange={(e) => set("title", e.target.value)} />
+      </label>
+      <label className="sm:col-span-2">
+        <span className="label">영문 제목(영문 Resume에 쓴다)</span>
+        <input className="input" maxLength={200} value={v.title_en} onChange={(e) => set("title_en", e.target.value)} />
       </label>
       <label>
         <span className="label">기관</span>

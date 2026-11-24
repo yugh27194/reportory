@@ -51,6 +51,7 @@ export type Item = {
   visibility: "private" | "public";
   skills?: string[];
   source_count?: number;
+  evidence_count?: number;
 };
 
 export type ItemSource = {
@@ -66,6 +67,7 @@ export type ItemSource = {
 export type ItemDetail = Item & {
   skills: string[];
   sources: ItemSource[];
+  evidence: Evidence[];
   applications: { id: string; title: string; status: string }[];
 };
 
@@ -110,6 +112,9 @@ export type Proposal = {
   item: Item | null;
   item_skills: string[];
   duplicate: Item | null;
+  import_source: ImportRow["source"] | null;
+  evidence_file_name: string | null;
+  evidence_kind: string | null;
 };
 
 export type Followup = {
@@ -144,6 +149,9 @@ export type Profile = {
   region: string | null;
   public_profile_enabled: boolean;
   llm_consent_at: string | null;
+  headline: string | null;
+  onboarding_completed_at: string | null;
+  notify_email: boolean;
 };
 
 /** details 키의 화면 표시 이름(인계서 10.2절 유형별 details). */
@@ -176,3 +184,133 @@ export const detailText = (details: Record<string, unknown>) =>
   Object.entries(details)
     .map(([k, v]) => `${DETAIL_LABELS[k] ?? k}: ${String(v)}`)
     .join(", ");
+
+export type Evidence = {
+  id: string;
+  item_id: string | null;
+  kind: "language_score" | "certificate" | "award_certificate" | "completion_certificate" | "other" | null;
+  status: "uploaded" | "processed" | "failed";
+  file_name: string;
+  mime_type: string;
+  visibility: "private" | "public";
+  issued_on: string | null;
+  expires_on: string | null;
+  extracted: Record<string, unknown>;
+  created_at: string;
+};
+
+export const EVIDENCE_KIND_LABELS: Record<string, string> = {
+  language_score: "어학 성적",
+  certificate: "자격증",
+  award_certificate: "상장",
+  completion_certificate: "수료증",
+  other: "기타",
+};
+
+export type DocFormat = "academic_cv" | "resume_en" | "resume_ko" | "project_portfolio";
+
+export const DOC_FORMATS: { key: DocFormat; label: string; desc: string }[] = [
+  { key: "resume_ko", label: "국문 이력서", desc: "국내 기업·공공기관용. 자격증·어학은 표로 정리한다." },
+  { key: "resume_en", label: "영문 Resume", desc: "외국계·해외 지원용 A4 1쪽. 행동 동사로 시작하는 bullet이다." },
+  { key: "academic_cv", label: "Academic CV", desc: "대학원·연구실·연구 인턴용. 연구 경험을 앞에 둔다." },
+  { key: "project_portfolio", label: "프로젝트 포트폴리오", desc: "개발·데이터 직무용. 표지와 프로젝트별 쪽으로 만든다." },
+];
+
+export type DocumentRow = {
+  id: string;
+  format: DocFormat;
+  title: string;
+  target_description: string | null;
+  language: "ko" | "en";
+  is_public: boolean;
+  created_at: string;
+  updated_at: string;
+  latest?: { version: number; status: string; created_at: string } | null;
+};
+
+export type DocVersion = {
+  id: string;
+  version: number;
+  selected_item_ids: string[];
+  options: { warnings?: string[]; dropped_lines?: number; removed_items?: string[] };
+  status: "queued" | "running" | "succeeded" | "failed";
+  has_pdf: boolean;
+  created_at: string;
+  content?: DocContent | null;
+  html?: string | null;
+};
+
+export type DocContent = {
+  "x-reportory": {
+    format: DocFormat;
+    sections: { key: string; label: string; items: string[] }[];
+    items: Record<
+      string,
+      {
+        title: string;
+        type: ItemType;
+        organization: string | null;
+        role: string | null;
+        period: [string | null, string | null];
+        is_ongoing: boolean;
+        skills: string[];
+        details: Record<string, unknown>;
+        lines: string[];
+      }
+    >;
+  };
+  skills?: { name: string; keywords: string[] }[];
+};
+
+export type RankedItem = {
+  id: string;
+  type: ItemType;
+  title: string;
+  title_en: string | null;
+  organization: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  is_ongoing: boolean;
+  score: number;
+  selected: boolean;
+};
+
+export type ImportRow = {
+  id: string;
+  source: "resume_file" | "github" | "linkedin_zip" | "manual";
+  status: "queued" | "running" | "succeeded" | "failed";
+  summary: { items_proposed?: number; merged?: number; skipped?: string[]; repos?: number };
+  error: string | null;
+  created_at: string;
+};
+
+export type Notification = {
+  id: string;
+  type: string;
+  title: string;
+  body: string | null;
+  link: string | null;
+  read_at: string | null;
+  created_at: string;
+};
+
+export type PeriodSummary = {
+  id: string;
+  period: "week" | "month";
+  period_start: string;
+  period_end: string;
+  summary_md: string;
+  highlights: { item_id: string; text: string }[];
+};
+
+export type Stats = {
+  items_by_type: Partial<Record<ItemType, number>>;
+  items_total: number;
+  pending_proposals: number;
+  open_followups: number;
+  entries: { total: number; this_week: number; days_this_month: number };
+  documents: number;
+  evidence: number;
+  recent_items: { id: string; type: ItemType; title: string; organization: string | null; approved_at: string }[];
+  latest_summary: PeriodSummary | null;
+};

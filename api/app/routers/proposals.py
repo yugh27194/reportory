@@ -26,10 +26,14 @@ async def list_proposals(
                      from item_skills isk join skills s on s.id = isk.skill_id
                     where isk.item_id = p.item_id and isk.user_id = p.user_id) as item_skills,
                   (select to_jsonb(d) - 'embedding' - 'user_id' from items d
-                    where d.id = p.possible_duplicate_of and d.user_id = p.user_id) as duplicate
+                    where d.id = p.possible_duplicate_of and d.user_id = p.user_id) as duplicate,
+                  imp.source as import_source,
+                  ev.file_name as evidence_file_name, ev.kind as evidence_kind
            from proposals p
            left join entries e on e.id = p.entry_id and e.user_id = p.user_id
            left join items i on i.id = p.item_id and i.user_id = p.user_id
+           left join imports imp on imp.id = p.import_id and imp.user_id = p.user_id
+           left join evidence ev on ev.id = p.evidence_id and ev.user_id = p.user_id
            where p.user_id = :user_id and p.status = cast(:status as proposal_status)
            order by p.created_at desc limit 200""",
         status=status,

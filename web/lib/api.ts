@@ -37,3 +37,14 @@ export const post = <T = unknown>(path: string, data?: unknown) =>
 
 export const patch = <T = unknown>(path: string, data: unknown) =>
   api<T>(path, { method: "PATCH", body: JSON.stringify(data) });
+
+/** 파일 업로드(multipart). Content-Type은 브라우저가 정한다. */
+export const upload = <T = unknown>(path: string, file: File, fields: Record<string, string> = {}) => {
+  const form = new FormData();
+  form.append("file", file);
+  Object.entries(fields).forEach(([k, v]) => form.append(k, v));
+  return api<T>(path, { method: "POST", body: form });
+};
+
+export const del = <T = unknown>(path: string, data?: unknown) =>
+  api<T>(path, { method: "DELETE", body: data === undefined ? undefined : JSON.stringify(data) });

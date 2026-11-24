@@ -98,3 +98,53 @@ async def consent(db: UserDB = Depends(get_user_db)):
         "update profiles set llm_consent_at = coalesce(llm_consent_at, now()) where id = :user_id"
     )
     return await ensure_profile(db)
+
+
+@router.post("/me/onboarding/complete")
+async def onboarding_complete(db: UserDB = Depends(get_user_db)):
+    await ensure_profile(db)
+    await db.execute(
+        """update profiles set onboarding_completed_at = coalesce(onboarding_completed_at, now())
+           where id = :user_id"""
+    )
+    return await ensure_profile(db)
+
+
+@router.get("/me/stats")
+async def stats(db: UserDB = Depends(get_user_db)):
+    """홈 화면 숫자: 유형별 승인 항목, 검토 대기, 일기 수, 최근 항목, 최근 요약."""
+    by_type = await db.all(
+        """select type, count(*) as n from items
+           where user_id = :user_id and status = 'approved' group by type"""
+    )
+    entries = await db.one(
+        """select count(*) as total,
+                  count(*) filter (where entry_date >= current_date - 6) as this_week,
+                  count(distinct entry_date) filter (where entry_date >= current_date - 29)
+                    as days_this_month
+           from entries where user_id = :user_id"""
+    )
+    recent = await db.all(
+        """select id, type, title, organization, approved_at from items
+           where user_id = :user_id and status = 'approved'
+           order by approved_at desc nulls last limit 5"""
+    )
+    summary = await db.one(
+        """select id, period, period_start, period_end, summary_md from period_summaries
+           where user_id = :user_id order by created_at desc limit 1"""
+    )
+    return {
+        "items_by_type": {r["type"]: r["n"] for r in by_type},
+        "items_total": sum(r["n"] for r in by_type),
+        "pending_proposals": await db.scalar(
+            "select count(*) from proposals where user_id = :user_id and status = 'pending'"
+        ),
+        "open_followups": await db.scalar(
+            "select count(*) from followup_questions where user_id = :user_id and status = 'open'"
+        ),
+        "entries": entries,
+        "documents": await db.scalar("select count(*) from documents where user_id = :user_id"),
+        "evidence": await db.scalar("select count(*) from evidence where user_id = :user_id"),
+        "recent_items": recent,
+        "latest_summary": summary,
+    }

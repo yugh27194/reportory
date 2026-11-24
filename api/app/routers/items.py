@@ -68,7 +68,9 @@ async def list_items(
                      join skills s on s.id = isk.skill_id
                      where isk.item_id = i.id and isk.user_id = i.user_id), '[]'::jsonb) as skills,
                    (select count(*) from item_sources src
-                     where src.item_id = i.id and src.user_id = i.user_id) as source_count
+                     where src.item_id = i.id and src.user_id = i.user_id) as source_count,
+                   (select count(*) from evidence e
+                     where e.item_id = i.id and e.user_id = i.user_id) as evidence_count
             from items i
             where i.user_id = :user_id and i.status = cast(:status as item_status)
               and (cast(:type as text) is null or i.type = cast(:type as item_type))

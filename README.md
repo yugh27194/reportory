@@ -15,12 +15,19 @@
 
 ## 지금 되는 것
 
+**Phase 1 · 핵심 순환**
 - 이메일 매직링크·GitHub 로그인(Supabase Auth)
 - 일기 작성 → LLM 추출 → 검토 큐(승인, 수정 후 승인, 거절, 일괄 승인, 기존 항목에 합치기)
-- 후속 질문에 답하면 항목 갱신 제안이 생긴다
-- 포트폴리오 항목 목록·상세·직접 추가·편집·병합·보관, 근거(원문 인용) 확인
-- 공개 프로필 `/p/{handle}`(승인되고 공개로 표시한 항목만)
-- LLM 출력 검증: 원문에 없는 인용, 숫자, 범위 밖 날짜, 모르는 항목 id는 저장하지 않는다
+- 후속 질문 답변, 포트폴리오 항목 관리·병합, 근거(원문 인용) 확인
+- 원문에 없는 인용·숫자·날짜·항목 id는 저장하지 않는다(서버 검증)
+
+**Phase 2 · 가져오기, 증빙, 문서**
+- 온보딩 5단계(목표 → 동의 → 자료 연결 → 검토 → 첫 결과)
+- 이력서 PDF·DOCX, LinkedIn ZIP, GitHub 저장소 가져오기. 여러 출처의 같은 항목은 하나로 합친다
+- 증빙 업로드(PDF·이미지) → 종류·값 읽기 → 항목 연결 제안, 값이 다르면 고르기, 서명 URL 열람
+- 목적별 문서 4종(국문 이력서, 영문 Resume, Academic CV, 프로젝트 포트폴리오), 버전, PDF
+- 주간·월간 요약, 앱 내 알림, 데이터 내보내기(JSON Resume ZIP), 계정 삭제
+- 공개 프로필 `/p/{handle}`(공개 항목, 공개 증빙, 공개 문서 PDF)
 
 ## 로컬 실행
 
@@ -41,6 +48,14 @@ cp .env.example web/.env.local
 ```
 
 `api/.env`에는 `DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:54322/postgres`, `SUPABASE_JWT_SECRET`, `ANTHROPIC_API_KEY`를 채운다. `web/.env.local`에는 `NEXT_PUBLIC_` 값만 있으면 된다.
+
+마이그레이션은 `supabase/migrations/` 안의 파일을 번호 순서대로 한 번씩 적용한다. Supabase 대시보드 SQL Editor를 쓴다면 `0001_init.sql`, `0002_phase2.sql` 순서로 붙여 넣어 실행한다.
+
+문서 PDF를 만들려면 API 서버 폴더에서 Chromium을 한 번 받아 둔다.
+
+```bash
+cd api && uv run playwright install chromium
+```
 
 API 서버:
 

@@ -1,8 +1,11 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Check, ClipboardCheck, FileCheck2, GitMerge, MessageCircleQuestion, Pencil, X } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 import { ErrorText } from "@/components/ErrorText";
+import { EmptyState, PageHeader, Tabs, TypeIcon } from "@/components/ui";
 import { api, post } from "@/lib/api";
 import { formatPeriod, highlightQuote } from "@/lib/text";
 import {
@@ -17,21 +20,35 @@ import {
 
 const BULK_MIN = 0.8;
 
+const SOURCE_LABELS: Record<string, string> = {
+  resume_file: "이력서",
+  github: "GitHub",
+  linkedin_zip: "LinkedIn",
+  manual: "직접 입력",
+};
+
+function sourceLabel(p: Proposal) {
+  if (p.entry_date) return `${p.entry_date} 일기`;
+  if (p.import_source) return SOURCE_LABELS[p.import_source] ?? "가져오기";
+  if (p.evidence_file_name) return `증빙 · ${p.evidence_file_name}`;
+  if (p.payload.followup_id) return "질문 답변";
+  return "";
+}
+
 function Quote({ proposal }: { proposal: Proposal }) {
   const [open, setOpen] = useState(false);
   if (!proposal.quote) return null;
   return (
     <div className="text-sm">
-      <button className="text-left text-zinc-600 hover:text-zinc-900" onClick={() => setOpen((v) => !v)}>
-        <span className="mr-1 text-zinc-400">근거</span>“{proposal.quote}”
-        {proposal.entry_body && <span className="ml-1 text-xs text-brand">{open ? "원문 닫기" : "원문 보기"}</span>}
+      <button className="w-full rounded-xl border-l-3 border-accent bg-cream/60 px-3 py-2 text-left text-ink/80" onClick={() => setOpen((v) => !v)}>
+        “{proposal.quote}”
+        {proposal.entry_body && <span className="ml-2 text-xs font-medium text-deep">{open ? "원문 닫기" : "원문 보기"}</span>}
       </button>
       {open && proposal.entry_body && (
-        <p className="mt-2 whitespace-pre-wrap rounded bg-zinc-50 p-3 text-zinc-600">
-          <span className="mb-1 block text-xs text-zinc-400">{proposal.entry_date} 일기</span>
+        <p className="mt-2 rounded-xl bg-paper p-3 leading-relaxed whitespace-pre-wrap text-muted ring-1 ring-line">
           {highlightQuote(proposal.entry_body, proposal.quote).map((s, i) =>
             s.highlight ? (
-              <mark key={i} className="bg-yellow-200">
+              <mark key={i} className="rounded bg-accent/40 px-0.5 text-ink">
                 {s.text}
               </mark>
             ) : (
@@ -47,11 +64,11 @@ function Quote({ proposal }: { proposal: Proposal }) {
 function Field({ label, before, after }: { label: string; before?: React.ReactNode; after: React.ReactNode }) {
   if (!after && !before) return null;
   return (
-    <div className="grid grid-cols-[88px_1fr] gap-2 text-sm">
-      <span className="text-zinc-500">{label}</span>
+    <div className="grid grid-cols-[84px_1fr] gap-2 text-sm">
+      <span className="text-muted">{label}</span>
       <span>
         {before !== undefined && before !== after && (
-          <span className="mr-2 text-zinc-400 line-through">{before || "없음"}</span>
+          <span className="mr-2 text-muted line-through decoration-red-300">{before || "없음"}</span>
         )}
         {after}
       </span>
@@ -61,20 +78,40 @@ function Field({ label, before, after }: { label: string; before?: React.ReactNo
 
 const metricText = (ms: Metric[]) => ms.map((m) => `${m.name} ${m.value}${m.unit ?? ""}`).join(", ");
 
-function Changes({ p }: { p: Proposal }) {
+type Conflict = { field: string; label: string; item_value: string; evidence_value: string };
+type Fill = { field: string; label: string; evidence_value: string };
+
+function Changes({
+  p,
+  resolutions,
+  setResolution,
+}: {
+  p: Proposal;
+  resolutions: Record<string, "item" | "evidence">;
+  setResolution: (f: string, v: "item" | "evidence") => void;
+}) {
   const item = p.item;
   if (p.kind === "create_item" && item) {
     return (
-      <div className="space-y-1">
-        <Field label="유형" after={ITEM_TYPE_LABELS[item.type]} />
-        <Field label="제목" after={item.title} />
+      <div className="space-y-1.5">
         <Field label="기관" after={item.organization} />
         <Field label="역할" after={item.role} />
         <Field label="기간" after={formatPeriod(item.start_date, item.end_date, item.is_ongoing)} />
         <Field label="요약" after={item.summary} />
         <Field label="수치" after={metricText(item.metrics)} />
         <Field label="세부" after={detailText(item.details)} />
-        <Field label="기술" after={p.item_skills.join(", ")} />
+        {p.item_skills.length > 0 && (
+          <div className="grid grid-cols-[84px_1fr] gap-2 text-sm">
+            <span className="text-muted">기술</span>
+            <span className="flex flex-wrap gap-1">
+              {p.item_skills.map((s) => (
+                <span key={s} className="chip">
+                  {s}
+                </span>
+              ))}
+            </span>
+          </div>
+        )}
       </div>
     );
   }
@@ -88,8 +125,7 @@ function Changes({ p }: { p: Proposal }) {
       details_patch?: Record<string, unknown>;
     };
     return (
-      <div className="space-y-1">
-        <Field label="대상" after={`${ITEM_TYPE_LABELS[item.type]} · ${item.title}`} />
+      <div className="space-y-1.5">
         {patch.summary_append && <Field label="요약 추가" after={patch.summary_append} />}
         {patch.role && <Field label="역할" before={item.role ?? ""} after={patch.role} />}
         {patch.end_date && <Field label="종료일" before={item.end_date ?? ""} after={patch.end_date} />}
@@ -98,65 +134,109 @@ function Changes({ p }: { p: Proposal }) {
         )}
         {!!patch.skills_add?.length && <Field label="기술 추가" after={patch.skills_add.join(", ")} />}
         {patch.details_patch && Object.keys(patch.details_patch).length > 0 && (
-          <Field
-            label="세부"
-            after={detailText(patch.details_patch)}
-          />
+          <Field label="세부" after={detailText(patch.details_patch)} />
         )}
       </div>
     );
   }
-  if (p.kind === "link_entry" && item) {
-    return <Field label="연결할 항목" after={`${ITEM_TYPE_LABELS[item.type]} · ${item.title}`} />;
+  if (p.kind === "link_entry") return <p className="text-sm text-muted">이 일기를 항목의 근거로 연결한다.</p>;
+  if (p.kind === "attach_evidence") {
+    const conflicts = (p.payload.conflicts as Conflict[]) ?? [];
+    const fills = (p.payload.fills as Fill[]) ?? [];
+    return (
+      <div className="space-y-3 text-sm">
+        <p className="text-muted">증빙 파일을 이 항목에 연결한다.</p>
+        {fills.length > 0 && (
+          <div>
+            <p className="mb-1 text-xs font-semibold text-muted">비어 있던 값을 증빙으로 채운다</p>
+            {fills.map((f) => (
+              <Field key={f.field} label={f.label} after={<span className="font-medium text-deep">{f.evidence_value}</span>} />
+            ))}
+          </div>
+        )}
+        {conflicts.length > 0 && (
+          <div className="space-y-2 rounded-xl bg-amber-50 p-3">
+            <p className="text-xs font-semibold text-amber-900">값이 다르다. 남길 값을 고른다.</p>
+            {conflicts.map((c) => (
+              <div key={c.field} className="grid grid-cols-[84px_1fr] items-center gap-2">
+                <span className="text-muted">{c.label}</span>
+                <span className="flex flex-wrap gap-2">
+                  {(["item", "evidence"] as const).map((side) => (
+                    <label
+                      key={side}
+                      className={`cursor-pointer rounded-lg border px-2.5 py-1 ${
+                        (resolutions[c.field] ?? "evidence") === side ? "border-deep bg-white font-medium" : "border-line bg-white/60"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        className="sr-only"
+                        checked={(resolutions[c.field] ?? "evidence") === side}
+                        onChange={() => setResolution(c.field, side)}
+                      />
+                      {side === "item" ? `지금 값 ${c.item_value}` : `증빙 값 ${c.evidence_value}`}
+                    </label>
+                  ))}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
   }
-  return <pre className="overflow-x-auto text-xs text-zinc-500">{JSON.stringify(p.payload, null, 2)}</pre>;
+  return <pre className="overflow-x-auto text-xs text-muted">{JSON.stringify(p.payload, null, 2)}</pre>;
 }
 
 function EditForm({ item, onSubmit, busy }: { item: Item; onSubmit: (v: Record<string, unknown>) => void; busy: boolean }) {
-  const [title, setTitle] = useState(item.title);
-  const [organization, setOrganization] = useState(item.organization ?? "");
-  const [role, setRole] = useState(item.role ?? "");
-  const [startDate, setStartDate] = useState(item.start_date ?? "");
-  const [endDate, setEndDate] = useState(item.end_date ?? "");
-  const [summary, setSummary] = useState(item.summary);
+  const [v, setV] = useState({
+    title: item.title,
+    organization: item.organization ?? "",
+    role: item.role ?? "",
+    start_date: item.start_date ?? "",
+    end_date: item.end_date ?? "",
+    summary: item.summary,
+  });
+  const set = (k: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+    setV((s) => ({ ...s, [k]: e.target.value }));
   return (
     <form
-      className="mt-3 grid gap-2 sm:grid-cols-2"
+      className="grid gap-3 rounded-xl bg-paper p-4 ring-1 ring-line sm:grid-cols-2"
       onSubmit={(e) => {
         e.preventDefault();
         onSubmit({
-          title,
-          organization: organization || null,
-          role: role || null,
-          start_date: startDate || null,
-          end_date: endDate || null,
-          summary,
+          title: v.title,
+          organization: v.organization || null,
+          role: v.role || null,
+          start_date: v.start_date || null,
+          end_date: v.end_date || null,
+          summary: v.summary,
         });
       }}
     >
       <label className="sm:col-span-2">
         <span className="label">제목</span>
-        <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} required />
+        <input className="input" value={v.title} onChange={set("title")} required />
       </label>
       <label>
         <span className="label">기관</span>
-        <input className="input" value={organization} onChange={(e) => setOrganization(e.target.value)} />
+        <input className="input" value={v.organization} onChange={set("organization")} />
       </label>
       <label>
         <span className="label">역할</span>
-        <input className="input" value={role} onChange={(e) => setRole(e.target.value)} />
+        <input className="input" value={v.role} onChange={set("role")} />
       </label>
       <label>
         <span className="label">시작일</span>
-        <input type="date" className="input" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+        <input type="date" className="input" value={v.start_date} onChange={set("start_date")} />
       </label>
       <label>
         <span className="label">종료일</span>
-        <input type="date" className="input" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+        <input type="date" className="input" value={v.end_date} onChange={set("end_date")} />
       </label>
       <label className="sm:col-span-2">
         <span className="label">요약</span>
-        <textarea className="input min-h-20" value={summary} onChange={(e) => setSummary(e.target.value)} />
+        <textarea className="input min-h-20" value={v.summary} onChange={set("summary")} />
       </label>
       <div className="sm:col-span-2">
         <button className="btn btn-primary" disabled={busy}>
@@ -167,22 +247,12 @@ function EditForm({ item, onSubmit, busy }: { item: Item; onSubmit: (v: Record<s
   );
 }
 
-function ProposalCard({
-  p,
-  selected,
-  toggle,
-}: {
-  p: Proposal;
-  selected: boolean;
-  toggle: () => void;
-}) {
+function ProposalCard({ p, selected, toggle }: { p: Proposal; selected: boolean; toggle: () => void }) {
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
+  const [resolutions, setResolutions] = useState<Record<string, "item" | "evidence">>({});
   const done = () => {
-    qc.invalidateQueries({ queryKey: ["proposals"] });
-    qc.invalidateQueries({ queryKey: ["followups"] });
-    qc.invalidateQueries({ queryKey: ["pending-count"] });
-    qc.invalidateQueries({ queryKey: ["items"] });
+    ["proposals", "followups", "pending-count", "items", "stats"].forEach((k) => qc.invalidateQueries({ queryKey: [k] }));
   };
   const accept = useMutation({
     mutationFn: (edited?: Record<string, unknown>) =>
@@ -191,59 +261,72 @@ function ProposalCard({
   });
   const reject = useMutation({ mutationFn: () => post(`/proposals/${p.id}/reject`), onSuccess: done });
   const mergeIntoDuplicate = useMutation({
-    // 제안 항목의 근거·기술을 기존 항목으로 옮긴다. 제안은 서버에서 함께 거절 처리된다.
-    mutationFn: () =>
-      post("/items/merge", { keep_item_id: p.possible_duplicate_of, merge_item_ids: [p.item_id] }),
+    mutationFn: () => post("/items/merge", { keep_item_id: p.possible_duplicate_of, merge_item_ids: [p.item_id] }),
     onSuccess: done,
   });
   const busy = accept.isPending || reject.isPending || mergeIntoDuplicate.isPending;
   const bulkable = (p.confidence ?? 0) >= BULK_MIN;
+  const item = p.item;
+
+  function approve() {
+    if (p.kind === "attach_evidence") {
+      const conflicts = (p.payload.conflicts as Conflict[]) ?? [];
+      const res = Object.fromEntries(conflicts.map((c) => [c.field, resolutions[c.field] ?? "evidence"]));
+      accept.mutate({ resolutions: res });
+    } else accept.mutate(undefined);
+  }
 
   return (
-    <article className="card space-y-3">
-      <header className="flex items-center gap-2 text-sm">
+    <article className={`card space-y-4 ${selected ? "ring-2 ring-accent" : ""}`}>
+      <header className="flex items-start gap-3">
+        {item ? <TypeIcon type={item.type} /> : <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-mint text-deep"><FileCheck2 size={18} /></span>}
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="chip">{PROPOSAL_KIND_LABELS[p.kind]}</span>
+            {item && <span className="text-muted">{ITEM_TYPE_LABELS[item.type]}</span>}
+            {p.confidence !== null && (
+              <span className={bulkable ? "text-muted" : "text-amber-700"}>신뢰도 {Math.round(p.confidence * 100)}%</span>
+            )}
+          </div>
+          <p className="mt-1 font-semibold">{item?.title ?? "증빙"}</p>
+          <p className="text-xs text-muted">{sourceLabel(p)}</p>
+        </div>
         <input
           type="checkbox"
+          className="mt-1 h-4 w-4 accent-[#224B46]"
           checked={selected}
           onChange={toggle}
           disabled={!bulkable}
           aria-label="일괄 승인에 넣기"
-          title={bulkable ? "일괄 승인에 넣기" : "신뢰도 0.8 미만은 하나씩 확인해야 한다"}
+          title={bulkable ? "일괄 승인에 넣기" : "신뢰도 80% 미만은 하나씩 확인해야 한다"}
         />
-        <span className="chip">{PROPOSAL_KIND_LABELS[p.kind]}</span>
-        {p.confidence !== null && (
-          <span className={`text-xs ${bulkable ? "text-zinc-500" : "text-amber-700"}`}>
-            신뢰도 {Math.round(p.confidence * 100)}%
-          </span>
-        )}
-        {p.entry_date && <span className="ml-auto text-xs text-zinc-400">{p.entry_date} 일기</span>}
       </header>
-      <Changes p={p} />
+      <Changes p={p} resolutions={resolutions} setResolution={(f, v) => setResolutions((r) => ({ ...r, [f]: v }))} />
       <Quote proposal={p} />
       {p.duplicate && (
-        <p className="rounded bg-amber-50 p-2 text-sm text-amber-900">
-          이미 있는 항목 “{p.duplicate.title}”과 같은 기록일 수 있다.
+        <p className="flex items-center gap-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
+          <GitMerge size={16} /> 이미 있는 항목 “{p.duplicate.title}”과 같은 기록일 수 있다.
         </p>
       )}
       <div className="flex flex-wrap gap-2">
-        <button className="btn btn-primary" onClick={() => accept.mutate(undefined)} disabled={busy}>
-          승인
+        <button className="btn btn-primary" onClick={approve} disabled={busy}>
+          <Check size={16} /> 승인
         </button>
-        {p.kind === "create_item" && p.item && (
+        {p.kind === "create_item" && item && (
           <button className="btn" onClick={() => setEditing((v) => !v)} disabled={busy}>
-            수정 후 승인
+            <Pencil size={14} /> 수정 후 승인
           </button>
         )}
         {p.duplicate && (
           <button className="btn" onClick={() => mergeIntoDuplicate.mutate()} disabled={busy}>
-            기존 항목에 합치기
+            <GitMerge size={14} /> 기존 항목에 합치기
           </button>
         )}
-        <button className="btn btn-danger" onClick={() => reject.mutate()} disabled={busy}>
-          거절
+        <button className="btn btn-ghost btn-danger ml-auto" onClick={() => reject.mutate()} disabled={busy}>
+          <X size={16} /> 거절
         </button>
       </div>
-      {editing && p.item && <EditForm item={p.item} busy={busy} onSubmit={(v) => accept.mutate(v)} />}
+      {editing && item && <EditForm item={item} busy={busy} onSubmit={(v) => accept.mutate(v)} />}
       <ErrorText error={accept.error ?? reject.error ?? mergeIntoDuplicate.error} />
     </article>
   );
@@ -260,17 +343,21 @@ function FollowupCard({ f }: { f: Followup }) {
     mutationFn: () => post(`/followups/${f.id}/answer`, { answer }),
     onSuccess: () => {
       done();
-      // 답변 분석이 끝나면 새 제안이 생긴다.
       setTimeout(() => qc.invalidateQueries({ queryKey: ["proposals"] }), 4000);
     },
   });
   const dismiss = useMutation({ mutationFn: () => post(`/followups/${f.id}/dismiss`), onSuccess: done });
   return (
-    <article className="card space-y-2">
-      <p className="text-xs text-zinc-500">
-        {ITEM_TYPE_LABELS[f.item_type]} · {f.item_title}
+    <article className="card space-y-3">
+      <div className="flex items-center gap-3">
+        <TypeIcon type={f.item_type} size="sm" />
+        <Link href={`/portfolio/${f.item_id}`} className="text-sm text-muted hover:text-deep">
+          {f.item_title}
+        </Link>
+      </div>
+      <p className="flex gap-2 font-semibold">
+        <MessageCircleQuestion size={18} className="mt-0.5 shrink-0 text-accent-2" /> {f.question}
       </p>
-      <p className="font-medium">{f.question}</p>
       <textarea
         className="input min-h-16"
         value={answer}
@@ -281,7 +368,7 @@ function FollowupCard({ f }: { f: Followup }) {
         <button className="btn btn-primary" disabled={!answer.trim() || send.isPending} onClick={() => send.mutate()}>
           답하기
         </button>
-        <button className="btn" disabled={dismiss.isPending} onClick={() => dismiss.mutate()}>
+        <button className="btn btn-ghost" disabled={dismiss.isPending} onClick={() => dismiss.mutate()}>
           넘기기
         </button>
       </div>
@@ -309,15 +396,15 @@ export default function ReviewPage() {
     mutationFn: () => post("/proposals/bulk-accept", { ids: [...selected] }),
     onSuccess: () => {
       setSelected(new Set());
-      qc.invalidateQueries({ queryKey: ["proposals"] });
-      qc.invalidateQueries({ queryKey: ["pending-count"] });
-      qc.invalidateQueries({ queryKey: ["items"] });
+      ["proposals", "pending-count", "items", "stats"].forEach((k) => qc.invalidateQueries({ queryKey: [k] }));
     },
   });
 
-  const list = (proposals.data?.proposals ?? []).filter(
+  const all = proposals.data?.proposals ?? [];
+  const list = all.filter(
     (p) => (kind === "all" || p.kind === kind) && (!highOnly || (p.confidence ?? 0) >= BULK_MIN),
   );
+  const bulkable = list.filter((p) => (p.confidence ?? 0) >= BULK_MIN);
   const toggle = (id: string) =>
     setSelected((s) => {
       const next = new Set(s);
@@ -325,71 +412,86 @@ export default function ReviewPage() {
       else next.add(id);
       return next;
     });
+  const kinds = [...new Set(all.map((p) => p.kind))];
 
   return (
-    <div className="space-y-4">
-      <div className="flex gap-1 border-b border-zinc-200">
-        {(
-          [
-            ["proposals", `제안 ${proposals.data?.proposals.length ?? ""}`],
-            ["followups", `질문 ${followups.data?.followups.length ?? ""}`],
-          ] as const
-        ).map(([key, label]) => (
-          <button
-            key={key}
-            onClick={() => setTab(key)}
-            className={`-mb-px border-b-2 px-4 py-2 text-sm ${
-              tab === key ? "border-brand font-medium text-brand" : "border-transparent text-zinc-500"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+    <div>
+      <PageHeader
+        eyebrow="Review"
+        title="검토 큐"
+        description="찾아낸 기록을 확인하고 승인한 것만 포트폴리오에 넣는다."
+        actions={
+          <Tabs
+            value={tab}
+            onChange={setTab}
+            tabs={[
+              { key: "proposals", label: `제안 ${all.length}` },
+              { key: "followups", label: `질문 ${followups.data?.followups.length ?? 0}` },
+            ]}
+          />
+        }
+      />
 
       {tab === "proposals" && (
-        <>
-          <div className="flex flex-wrap items-center gap-3 text-sm">
-            <select className="input w-auto" value={kind} onChange={(e) => setKind(e.target.value)}>
-              <option value="all">모든 종류</option>
-              {Object.entries(PROPOSAL_KIND_LABELS).map(([k, v]) => (
-                <option key={k} value={k}>
-                  {v}
-                </option>
-              ))}
-            </select>
-            <label className="flex items-center gap-1">
-              <input type="checkbox" checked={highOnly} onChange={(e) => setHighOnly(e.target.checked)} />
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-white/70 p-2 ring-1 ring-line">
+            {["all", ...kinds].map((k) => (
+              <button
+                key={k}
+                onClick={() => setKind(k)}
+                className={`rounded-lg px-3 py-1.5 text-sm ${kind === k ? "bg-ink text-white" : "text-muted hover:bg-ink/5"}`}
+              >
+                {k === "all" ? "전체" : PROPOSAL_KIND_LABELS[k as Proposal["kind"]]}
+              </button>
+            ))}
+            <label className="ml-2 flex items-center gap-1.5 text-sm text-muted">
+              <input type="checkbox" className="accent-[#224B46]" checked={highOnly} onChange={(e) => setHighOnly(e.target.checked)} />
               신뢰도 80% 이상만
             </label>
-            <button
-              className="btn btn-primary ml-auto"
-              disabled={selected.size === 0 || bulk.isPending}
-              onClick={() => bulk.mutate()}
-            >
-              선택한 {selected.size}건 일괄 승인
-            </button>
+            <div className="ml-auto flex gap-2">
+              {bulkable.length > 0 && (
+                <button className="btn btn-sm" onClick={() => setSelected(new Set(bulkable.map((p) => p.id)))}>
+                  모두 선택({bulkable.length})
+                </button>
+              )}
+              <button className="btn btn-primary btn-sm" disabled={selected.size === 0 || bulk.isPending} onClick={() => bulk.mutate()}>
+                선택한 {selected.size}건 승인
+              </button>
+            </div>
           </div>
           <ErrorText error={bulk.error ?? proposals.error} />
           {proposals.isSuccess && list.length === 0 && (
-            <p className="text-sm text-zinc-500">검토할 제안이 없다. 일기를 쓰면 여기에 제안이 쌓인다.</p>
+            <EmptyState
+              icon={ClipboardCheck}
+              title="검토할 제안이 없다"
+              description="일기를 쓰거나 이력서·증빙을 올리면 여기에 제안이 쌓인다."
+              action={
+                <Link href="/journal" className="btn btn-primary">
+                  일기 쓰러 가기
+                </Link>
+              }
+            />
           )}
-          {list.map((p) => (
-            <ProposalCard key={p.id} p={p} selected={selected.has(p.id)} toggle={() => toggle(p.id)} />
-          ))}
-        </>
+          <div className="grid gap-4 xl:grid-cols-2">
+            {list.map((p) => (
+              <ProposalCard key={p.id} p={p} selected={selected.has(p.id)} toggle={() => toggle(p.id)} />
+            ))}
+          </div>
+        </div>
       )}
 
       {tab === "followups" && (
-        <>
+        <div className="space-y-4">
           <ErrorText error={followups.error} />
           {followups.isSuccess && followups.data.followups.length === 0 && (
-            <p className="text-sm text-zinc-500">열린 질문이 없다.</p>
+            <EmptyState icon={MessageCircleQuestion} title="열린 질문이 없다" description="빠진 수치나 역할이 있으면 여기서 물어본다." />
           )}
-          {followups.data?.followups.map((f) => (
-            <FollowupCard key={f.id} f={f} />
-          ))}
-        </>
+          <div className="grid gap-4 xl:grid-cols-2">
+            {followups.data?.followups.map((f) => (
+              <FollowupCard key={f.id} f={f} />
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );
