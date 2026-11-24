@@ -19,11 +19,12 @@ class Settings(BaseSettings):
 
     llm_provider: str = "anthropic"  # anthropic | mock
     anthropic_api_key: str = ""
+    openai_api_key: str = ""  # 임베딩(OpenAI) 전용
     llm_model_extract: str = "claude-sonnet-5-5"
     llm_model_light: str = "claude-haiku-5-5"
 
-    embedding_provider: str = ""  # 19장: 착수 시 확정한다. 비어 있으면 임베딩을 계산하지 않는다
-    embedding_model: str = ""
+    embedding_provider: str = ""  # openai. 비어 있으면 임베딩을 계산하지 않는다
+    embedding_model: str = "text-embedding-3-small"
     embedding_dim: int = 1536
 
     cron_secret: str = ""
