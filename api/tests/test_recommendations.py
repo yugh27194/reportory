@@ -326,6 +326,9 @@ async def test_add_opportunity_by_url_is_private(make_user, mock_llm, anon, pg):
 
 
 async def test_auto_transitions_and_reminders(make_user, anon, pg):
+    from app.routers.internal import today_kst
+
+    today = today_kst()  # 알림은 한국 날짜로 계산한다(UTC와 하루 어긋나는 시간대가 있다)
     user = await make_user()
     app = (
         await user.client.post(
@@ -333,7 +336,7 @@ async def test_auto_transitions_and_reminders(make_user, anon, pg):
             json={
                 "title": "OO 서포터즈",
                 "category": "external_activity",
-                "apply_deadline": (TODAY - timedelta(days=14)).isoformat(),
+                "apply_deadline": (today - timedelta(days=14)).isoformat(),
             },
         )
     ).json()
