@@ -5,6 +5,7 @@
 - 호출마다 llm_calls에 목적, 모델, 프롬프트 버전, 토큰, 지연을 남긴다. 입력·출력 본문은 남기지 않는다.
 """
 
+import base64
 import json
 import time
 from collections.abc import Awaitable, Callable
@@ -66,6 +67,14 @@ class ProviderResult:
     output_tokens: int | None = None
 
 
+@dataclass
+class Attachment:
+    """이미지·PDF 입력(증빙, 스캔 이력서). 내용은 로그에 남기지 않는다."""
+
+    media_type: str  # image/png, image/jpeg, image/webp, application/pdf
+    data: bytes
+
+
 class Provider(Protocol):
     name: str
 
@@ -78,6 +87,7 @@ class Provider(Protocol):
         schema: dict,
         model: str,
         variables: dict[str, Any],
+        attachments: list["Attachment"] | None = None,
     ) -> ProviderResult: ...
 
 
@@ -89,14 +99,16 @@ class AnthropicProvider:
         self.api_key = api_key
         self.timeout = timeout
 
-    async def generate(self, *, purpose, system, user, schema, model, variables) -> ProviderResult:
+    async def generate(
+        self, *, purpose, system, user, schema, model, variables, attachments=None
+    ) -> ProviderResult:
         if not self.api_key:
             raise LLMError("ANTHROPIC_API_KEY가 설정되지 않았다.")
         body = {
             "model": model,
             "max_tokens": 4096,
             "system": system,
-            "messages": [{"role": "user", "content": user}],
+            "messages": [{"role": "user", "content": _content(user, attachments)}],
             "tools": [{"name": "output", "description": "결과", "input_schema": schema}],
             "tool_choice": {"type": "tool", "name": "output"},
         }
@@ -135,13 +147,35 @@ class MockProvider:
     def on(self, purpose: str, handler: MockHandler) -> None:
         self.handlers[purpose] = handler
 
-    async def generate(self, *, purpose, system, user, schema, model, variables) -> ProviderResult:
+    async def generate(
+        self, *, purpose, system, user, schema, model, variables, attachments=None
+    ) -> ProviderResult:
         self.calls.append(purpose)
         if purpose not in self.handlers:
             raise LLMError(f"mock 응답이 등록되지 않았다: {purpose}")
         return ProviderResult(
             data=self.handlers[purpose](variables), input_tokens=0, output_tokens=0
         )
+
+
+def _content(text: str, attachments: list[Attachment] | None) -> Any:
+    if not attachments:
+        return text
+    blocks: list[dict[str, Any]] = []
+    for a in attachments:
+        kind = "document" if a.media_type == "application/pdf" else "image"
+        blocks.append(
+            {
+                "type": kind,
+                "source": {
+                    "type": "base64",
+                    "media_type": a.media_type,
+                    "data": base64.b64encode(a.data).decode(),
+                },
+            }
+        )
+    blocks.append({"type": "text", "text": text})
+    return blocks
 
 
 CallLogger = Callable[[dict[str, Any]], Awaitable[None]]
@@ -162,6 +196,7 @@ class LLMClient:
         *,
         user_id: UUID | None = None,
         log_call: CallLogger | None = None,
+        attachments: list[Attachment] | None = None,
     ) -> T:
         prompt = load_prompt(prompt_name)
         model = self.models[model_tier]
@@ -189,6 +224,7 @@ class LLMClient:
                     schema=json_schema,
                     model=model,
                     variables=variables,
+                    attachments=attachments,
                 )
                 parsed = schema.model_validate(result.data)
             except ValidationError as exc:

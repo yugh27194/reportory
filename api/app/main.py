@@ -8,7 +8,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from app import errors
 from app.config import get_settings
 from app.db import dispose_engine
-from app.routers import entries, followups, internal, items, jobs, me, proposals, public
+from app.routers import (
+    entries,
+    evidence,
+    files,
+    followups,
+    internal,
+    items,
+    jobs,
+    me,
+    proposals,
+    public,
+)
 
 API_PREFIX = "/api/v1"
 
@@ -29,7 +40,18 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     errors.install(app)
-    for module in (me, entries, proposals, followups, items, jobs, public, internal):
+    for module in (
+        me,
+        entries,
+        proposals,
+        followups,
+        items,
+        evidence,
+        jobs,
+        public,
+        internal,
+        files,
+    ):
         app.include_router(module.router, prefix=API_PREFIX)
 
     @app.get("/healthz", include_in_schema=False)

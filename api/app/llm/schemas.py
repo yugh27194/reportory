@@ -81,3 +81,18 @@ class ActivitySummary(BaseModel):
     role: str | None = None
     metrics: list[Metric] = []
     skills: list[str] = []
+
+
+class EvidenceExtract(BaseModel):
+    """증빙 분류와 추출(10.10절)."""
+
+    kind: Literal[
+        "language_score", "certificate", "award_certificate", "completion_certificate", "other"
+    ]
+    title: str | None = None  # 시험명, 자격명, 대회명, 과정명
+    issuer: str | None = None
+    issued_on: date | None = None
+    expires_on: date | None = None
+    score: str | None = None  # 어학 점수·등급
+    award_rank: str | None = None
+    confidence: float = Field(ge=0, le=1)

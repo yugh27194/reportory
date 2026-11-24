@@ -143,3 +143,50 @@ def answer_followup(variables: dict[str, Any]) -> dict[str, Any]:
 
 
 HANDLERS = {"extract_entry": extract_entry, "answer_followup": answer_followup}
+
+
+# ===== 증빙(데모): 파일 이름과 PDF 글자에서 규칙으로 읽는다. 스캔본·이미지는 읽지 못한다. =====
+_TESTS = ["TOEIC Speaking", "TOEIC", "TOEFL", "TEPS", "OPIc", "IELTS", "JLPT", "HSK"]
+_DATE = re.compile(r"(20\d{2})\s*[.\-/년]\s*(\d{1,2})\s*[.\-/월]\s*(\d{1,2})")
+_SCORE = re.compile(r"(?:Total|TOTAL|총점|점수|Score|SCORE)\D{0,12}(\d{2,3})")
+_RANK = re.compile(r"(대상|최우수상|우수상|장려상|금상|은상|동상|입선)")
+
+
+def process_evidence(variables: dict[str, Any]) -> dict[str, Any]:
+    text: str = variables.get("TEXT") or ""
+    source = f"{variables.get('FILE_NAME') or ''}\n{text}"
+    if not text.strip():
+        return {"kind": "other", "confidence": 0.2}
+    test = next((t for t in _TESTS if t.lower() in source.lower()), None)
+    date_m = _DATE.search(text)
+    issued = (
+        f"{date_m.group(1)}-{int(date_m.group(2)):02d}-{int(date_m.group(3)):02d}"
+        if date_m
+        else None
+    )
+    if test:
+        score = _SCORE.search(text)
+        return {
+            "kind": "language_score",
+            "title": test,
+            "score": score.group(1) if score else None,
+            "issued_on": issued,
+            "confidence": 0.5,
+        }
+    rank = _RANK.search(text)
+    if rank or "상장" in source:
+        return {
+            "kind": "award_certificate",
+            "title": None,
+            "award_rank": rank.group(1) if rank else None,
+            "issued_on": issued,
+            "confidence": 0.4,
+        }
+    if "수료" in source:
+        return {"kind": "completion_certificate", "issued_on": issued, "confidence": 0.4}
+    if "자격" in source or "기사" in source:
+        return {"kind": "certificate", "issued_on": issued, "confidence": 0.4}
+    return {"kind": "other", "issued_on": issued, "confidence": 0.3}
+
+
+HANDLERS["process_evidence"] = process_evidence

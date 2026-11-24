@@ -4,7 +4,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
 from app.db import UserDB
-from app.jobs import answer_followup, embed_item, extract_entry
+from app.jobs import answer_followup, embed_item, extract_entry, process_evidence
 
 Handler = Callable[[UserDB, dict], Awaitable[dict]]
 FailureHook = Callable[[UserDB, dict], Awaitable[None]]
@@ -28,4 +28,5 @@ HANDLERS: dict[str, JobSpec] = {
     "extract_entry": JobSpec(extract_entry.run, extract_entry.on_final_failure),
     "answer_followup": JobSpec(answer_followup.run),
     "embed_item": JobSpec(embed_item.run),
+    "process_evidence": JobSpec(process_evidence.run, process_evidence.on_final_failure),
 }

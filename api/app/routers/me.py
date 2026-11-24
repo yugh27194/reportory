@@ -11,7 +11,7 @@ from app.errors import ApiError
 
 router = APIRouter(tags=["me"])
 
-PROFILE_COLUMNS = """id, handle, display_name, display_name_en, email_public, links, goal,
+PROFILE_COLUMNS = """id, handle, display_name, display_name_en, headline, email_public, links, goal,
   interests, target_roles, school, major, grade, region, public_profile_enabled,
   llm_consent_at, onboarding_completed_at, notify_email, created_at, updated_at"""
 
@@ -36,6 +36,7 @@ class ProfilePatch(BaseModel):
     handle: str | None = None
     display_name: str | None = Field(default=None, max_length=100)
     display_name_en: str | None = Field(default=None, max_length=100)
+    headline: str | None = Field(default=None, max_length=120)
     email_public: str | None = Field(default=None, max_length=200)
     links: list[Link] | None = None
     goal: Literal["grad_school", "employment", "undecided"] | None = None

@@ -33,6 +33,12 @@ async def item_detail(db: UserDB, item_id: UUID) -> dict:
            where s.item_id = :item_id and s.user_id = :user_id order by s.created_at""",
         item_id=item_id,
     )
+    item["evidence"] = await db.all(
+        """select id, kind, status, file_name, mime_type, visibility, issued_on, expires_on,
+                  extracted, created_at
+           from evidence where item_id = :item_id and user_id = :user_id order by created_at""",
+        item_id=item_id,
+    )
     item["applications"] = await db.all(
         """select id, title, status from applications
            where item_id = :item_id and user_id = :user_id order by created_at""",

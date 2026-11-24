@@ -27,6 +27,16 @@ class Settings(BaseSettings):
     embedding_model: str = "text-embedding-3-small"
     embedding_dim: int = 1536
 
+    # 파일 저장: auto면 SUPABASE_URL과 SUPABASE_SERVICE_ROLE_KEY가 있을 때 Supabase Storage,
+    # 없으면 로컬 폴더(STORAGE_LOCAL_DIR)를 쓴다.
+    storage_backend: str = "auto"  # auto | supabase | local
+    storage_local_dir: str = ".storage"
+    api_public_url: str = "http://localhost:8000"  # 로컬 저장소 서명 URL의 앞부분
+    signed_url_ttl_seconds: int = 300
+    max_upload_mb: int = 10
+
+    github_api_url: str = "https://api.github.com"
+
     cron_secret: str = ""
     allowed_origins: str = "http://localhost:3000"
 

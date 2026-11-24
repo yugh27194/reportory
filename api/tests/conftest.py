@@ -5,6 +5,7 @@ Supabase 대역(supabase/local/supabase_shim.sql)과 마이그레이션을 적�
 """
 
 import os
+import tempfile
 import uuid
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -28,6 +29,9 @@ os.environ["SUPABASE_JWKS_URL"] = ""
 os.environ["LLM_PROVIDER"] = "mock"
 os.environ["CRON_SECRET"] = CRON_SECRET
 os.environ["EMBEDDING_PROVIDER"] = ""
+os.environ["STORAGE_BACKEND"] = "local"
+os.environ["STORAGE_LOCAL_DIR"] = tempfile.mkdtemp(prefix="reportory-storage-")
+os.environ["API_PUBLIC_URL"] = "http://test"
 
 from httpx import ASGITransport, AsyncClient  # noqa: E402
 

@@ -10,6 +10,7 @@ from app.db import UserDB, as_json
 from app.errors import ApiError, invalid_transition, not_found, validation_error
 from app.llm.schemas import Metric
 from app.llm.validators import date_in_range
+from app.services.evidence import apply_attach
 from app.services.items import add_source, apply_patch, filter_details, get_item, merge_items
 from app.services.jobs import enqueue
 from app.services.skills import link_skills
@@ -186,6 +187,10 @@ async def accept(db: UserDB, proposal_id: UUID, edited: dict | None = None) -> d
                 db, UUID(str(data["keep_item_id"])), [UUID(str(i)) for i in data["merge_item_ids"]]
             )
             payload = data if edited else None
+        case "attach_evidence":
+            # 고른 값(resolutions)은 기록으로 남긴다.
+            payload = await apply_attach(db, p["payload"], edited)
+            edited = edited or {"applied": True}
         case _:
             raise ApiError(422, "validation_error", "이 제안 종류는 아직 처리할 수 없다.")
     await _resolve(db, proposal_id, "accepted", payload if edited else None)
