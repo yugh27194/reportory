@@ -1,0 +1,18 @@
+{% extends "base.html.j2" %}
+{% import "_macros.html.j2" as m %}
+{% block body %}
+{{ m.header(c, x) }}
+{% if x.interests %}
+<section data-section="interests"><h2>연구 관심 분야</h2>
+  <div class="chips">{% for i in x.interests %}<span class="chip">{{ i }}</span>{% endfor %}</div>
+</section>
+{% endif %}
+{% for sec in x.sections if sec['items'] %}
+<section data-section="{{ sec.key }}"><h2>{{ sec.label }}</h2>
+  {% for id in sec['items'] %}{{ m.entry(x['items'][id]) }}{% endfor %}
+</section>
+{% endfor %}
+{% if c.skills %}<section data-section="skills"><h2>기술</h2>
+  <div class="chips">{% for k in c.skills[0].keywords %}<span class="chip">{{ k }}</span>{% endfor %}</div>
+</section>{% endif %}
+{% endblock %}

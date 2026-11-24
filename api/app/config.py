@@ -37,6 +37,9 @@ class Settings(BaseSettings):
 
     github_api_url: str = "https://api.github.com"
 
+    # 문서 PDF용 Chromium. 비우면 Playwright가 설치한 브라우저를 쓴다(`playwright install chromium`).
+    pdf_chromium_executable: str = ""
+
     cron_secret: str = ""
     allowed_origins: str = "http://localhost:3000"
 

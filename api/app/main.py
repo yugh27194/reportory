@@ -9,6 +9,7 @@ from app import errors
 from app.config import get_settings
 from app.db import dispose_engine
 from app.routers import (
+    documents,
     entries,
     evidence,
     files,
@@ -49,6 +50,7 @@ def create_app() -> FastAPI:
         items,
         evidence,
         imports,
+        documents,
         jobs,
         public,
         internal,

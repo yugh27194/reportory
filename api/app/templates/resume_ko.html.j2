@@ -1,0 +1,42 @@
+{% extends "base.html.j2" %}
+{% import "_macros.html.j2" as m %}
+{% block style %}
+h2 { text-transform: none; letter-spacing: 0; }
+td.lines div + div { margin-top: 2pt; }
+{% endblock %}
+{% block body %}
+<h1 style="text-align:center; letter-spacing: 0.3em">이 력 서</h1>
+<section data-section="basics"><h2>인적사항</h2>
+  <table><tr><th>성명</th><td>{{ c.basics.name }}</td><th>이메일</th><td>{{ c.basics.email }}</td></tr>
+  {% if c.basics.profiles %}<tr><th>링크</th><td colspan="3">{% for p in c.basics.profiles %}{{ p.network }}: {{ p.url }}{% if not loop.last %}<br>{% endif %}{% endfor %}</td></tr>{% endif %}
+  </table>
+</section>
+{% for sec in x.sections if sec['items'] %}
+<section data-section="{{ sec.key }}"><h2>{{ sec.label }}</h2>
+  {% if sec.key == 'certifications' %}
+  <table><tr><th>자격명</th><th>발급기관</th><th>취득일</th></tr>
+  {% for id in sec['items'] %}{% set i = x['items'][id] %}
+    <tr><td>{{ i.title }}</td><td>{{ i.details.issuer or i.organization or '' }}</td><td>{{ (i.period[0] or '') }}</td></tr>
+  {% endfor %}</table>
+  {% elif sec.key == 'languages' %}
+  <table><tr><th>시험</th><th>점수·등급</th><th>응시일</th><th>유효기간</th></tr>
+  {% for id in sec['items'] %}{% set i = x['items'][id] %}
+    <tr><td>{{ i.details.test or i.title }}</td><td>{{ i.details.score or i.details.level or '' }}</td><td>{{ i.details.test_date or '' }}</td><td>{{ i.details.valid_until or '' }}</td></tr>
+  {% endfor %}</table>
+  {% elif sec.key == 'awards' %}
+  <table><tr><th>수상명</th><th>순위</th><th>주최</th><th>일자</th></tr>
+  {% for id in sec['items'] %}{% set i = x['items'][id] %}
+    <tr><td>{{ i.title }}</td><td>{{ i.details.rank or '' }}</td><td>{{ i.details.host or i.organization or '' }}</td><td>{{ i.period[1] or i.period[0] or '' }}</td></tr>
+  {% endfor %}</table>
+  {% else %}
+  <table><tr><th style="width:24%">기간</th><th style="width:26%">{{ '학교' if sec.key == 'education' else '이름·기관' }}</th><th>내용</th></tr>
+  {% for id in sec['items'] %}{% set i = x['items'][id] %}
+    <tr><td>{{ m.period(i.period, i.is_ongoing) }}</td>
+      <td>{{ i.title }}{% if i.organization and i.organization != i.title %}<br><span class="muted">{{ i.organization }}</span>{% endif %}{% if i.details.major %}<br><span class="muted">{{ i.details.major }} {{ i.details.degree or '' }}</span>{% endif %}</td>
+      <td class="lines">{% if i.role %}<div class="muted">{{ i.role }}</div>{% endif %}{% for l in i.lines %}<div>{{ l }}</div>{% endfor %}</td></tr>
+  {% endfor %}</table>
+  {% endif %}
+</section>
+{% endfor %}
+{% if c.skills %}<section data-section="skills"><h2>기술</h2><div>{{ c.skills[0].keywords | join(', ') }}</div></section>{% endif %}
+{% endblock %}

@@ -96,3 +96,21 @@ class EvidenceExtract(BaseModel):
     score: str | None = None  # 어학 점수·등급
     award_rank: str | None = None
     confidence: float = Field(ge=0, le=1)
+
+
+class DocLine(BaseModel):
+    text: str
+    item_id: UUID
+
+
+class DocSection(BaseModel):
+    item_id: UUID
+    heading: str | None = None
+    lines: list[DocLine]
+
+
+class RewriteResult(BaseModel):
+    """문서 문장 변환(10.8절)."""
+
+    summary: str | None = None  # Resume 상단 요약
+    sections: list[DocSection]

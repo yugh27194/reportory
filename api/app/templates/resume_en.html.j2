@@ -1,0 +1,19 @@
+{% extends "base.html.j2" %}
+{% import "_macros.html.j2" as m %}
+{% block style %}
+h1 { font-size: 20pt; }
+h2 { margin-top: 10pt; }
+.entry { margin-bottom: 5pt; }
+{% endblock %}
+{% block body %}
+{{ m.header(c, x) }}
+{% if summary %}<p style="margin: 6pt 0 0">{{ summary }}</p>{% endif %}
+{% for sec in x.sections if sec['items'] %}
+<section data-section="{{ sec.key }}"><h2>{{ sec.label }}</h2>
+  {% for id in sec['items'] %}{{ m.entry(x['items'][id], en=true) }}{% endfor %}
+</section>
+{% endfor %}
+{% if c.skills %}<section data-section="skills"><h2>Skills</h2>
+  <div>{{ c.skills[0].keywords | join(', ') }}</div>
+</section>{% endif %}
+{% endblock %}

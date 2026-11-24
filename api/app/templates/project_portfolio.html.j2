@@ -1,0 +1,42 @@
+{% extends "base.html.j2" %}
+{% import "_macros.html.j2" as m %}
+{% block style %}
+.cover { height: 250mm; display: flex; flex-direction: column; justify-content: flex-end;
+  background: var(--ink); color: #fff; padding: 22mm 18mm; border-radius: 4mm; }
+.cover h1 { font-size: 32pt; }
+.cover .accent { width: 28mm; height: 2.5mm; background: var(--accent); margin-bottom: 8mm; }
+.cover .sub { color: var(--mint); margin-top: 4mm; font-size: 12pt; }
+.project { break-before: page; }
+.project h2 { font-size: 18pt; text-transform: none; letter-spacing: -0.01em; color: var(--ink);
+  border-bottom: 2pt solid var(--accent); }
+.meta { display: grid; grid-template-columns: 22mm 1fr; gap: 3pt 8pt; margin: 6pt 0 10pt; }
+.meta dt { color: var(--muted); }
+.meta dd { margin: 0; }
+.lines li { margin: 4pt 0; }
+.metrics { display: flex; gap: 8pt; margin-top: 8pt; }
+.metric { background: var(--cream); border-radius: 3mm; padding: 6pt 10pt; }
+.metric b { display: block; font-size: 15pt; color: var(--deep); }
+{% endblock %}
+{% block body %}
+<div class="cover">
+  <div class="accent"></div>
+  <div>Project Portfolio</div>
+  <h1>{{ c.basics.name or '' }}</h1>
+  <div class="sub">{{ c.basics.label or '' }}</div>
+  <div class="sub">프로젝트 {{ x.sections[0]['items'] | length }}개</div>
+</div>
+{% for id in x.sections[0]['items'] %}{% set i = x['items'][id] %}
+<section class="project" data-section="project-{{ loop.index }}">
+  <h2>{{ i.title }}</h2>
+  <dl class="meta">
+    <dt>기간</dt><dd>{{ m.period(i.period, i.is_ongoing) or '-' }}</dd>
+    {% if i.role or i.details.team_size %}<dt>역할·팀</dt><dd>{{ [i.role, (i.details.team_size ~ '명 팀') if i.details.team_size else None] | select | join(' · ') }}</dd>{% endif %}
+    {% if i.skills %}<dt>도구</dt><dd><div class="chips">{% for s in i.skills %}<span class="chip">{{ s }}</span>{% endfor %}</div></dd>{% endif %}
+    {% if i.details.repo_url %}<dt>저장소</dt><dd><a href="{{ i.details.repo_url }}">{{ i.details.repo_url }}</a></dd>{% endif %}
+    {% if i.details.demo_url %}<dt>데모</dt><dd><a href="{{ i.details.demo_url }}">{{ i.details.demo_url }}</a></dd>{% endif %}
+  </dl>
+  {% if i.lines %}<ul class="lines">{% for l in i.lines %}<li>{{ l }}</li>{% endfor %}</ul>{% endif %}
+  {% if i.metrics %}<div class="metrics">{% for mt in i.metrics %}<div class="metric"><b>{{ mt.value }}{{ mt.unit or '' }}</b>{{ mt.name }}</div>{% endfor %}</div>{% endif %}
+</section>
+{% endfor %}
+{% endblock %}

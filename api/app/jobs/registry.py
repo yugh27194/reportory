@@ -4,7 +4,14 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
 from app.db import UserDB
-from app.jobs import answer_followup, embed_item, extract_entry, imports, process_evidence
+from app.jobs import (
+    answer_followup,
+    embed_item,
+    extract_entry,
+    generate_document,
+    imports,
+    process_evidence,
+)
 
 Handler = Callable[[UserDB, dict], Awaitable[dict]]
 FailureHook = Callable[[UserDB, dict], Awaitable[None]]
@@ -32,4 +39,5 @@ HANDLERS: dict[str, JobSpec] = {
     "import_resume": JobSpec(imports.run_resume_job, imports.on_final_failure),
     "import_linkedin": JobSpec(imports.run_linkedin_job, imports.on_final_failure),
     "import_github": JobSpec(imports.run_github_job, imports.on_final_failure),
+    "generate_document": JobSpec(generate_document.run, generate_document.on_final_failure),
 }

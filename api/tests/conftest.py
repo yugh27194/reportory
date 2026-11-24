@@ -32,6 +32,9 @@ os.environ["EMBEDDING_PROVIDER"] = ""
 os.environ["STORAGE_BACKEND"] = "local"
 os.environ["STORAGE_LOCAL_DIR"] = tempfile.mkdtemp(prefix="reportory-storage-")
 os.environ["API_PUBLIC_URL"] = "http://test"
+_chromium = "/opt/pw-browsers/chromium-1243/chrome-linux64/chrome"
+if "PDF_CHROMIUM_EXECUTABLE" not in os.environ and os.path.exists(_chromium):
+    os.environ["PDF_CHROMIUM_EXECUTABLE"] = _chromium
 
 from httpx import ASGITransport, AsyncClient  # noqa: E402
 
